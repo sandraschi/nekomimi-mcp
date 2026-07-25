@@ -1,0 +1,82 @@
+# nekomimi-mcp — Full Documentation
+
+## Overview
+nekomimi-mcp is a substrate-independent embodiment layer for conversational NPCs. It provides an abstract expressive vocabulary (intent tokens) that is rendered on whatever physical or virtual body is available.
+
+Architecture: INTENT layer (LLM emits tokens) -> RENDER layer (per-body translators).
+
+## MCP Tools
+
+### intent_tool
+Express a single intent token. Parameters:
+- token: One of: attending, confused, nod, shake, sulk, bashful, amused, surprised, curious, alarmed, excited, tired, attentive_listen, celebrate, apologetic, present, idle
+- renderer: Target body (boomy, vrm, reachy_mini, bhl) or None for all
+- timing_seconds: Duration (0.1-10.0)
+- speed: Speed multiplier (0.0-1.0)
+- intensity: Amplitude (0.0-1.0)
+- easing: linear, ease_in, ease_out, ease_in_out, snap, bounce
+- hold_seconds: Sustain end pose
+- hesitation: Initial delay
+- repeat: Repetitions (1-10)
+
+### intent_stream
+Execute a sequence of intents in order. Parameters: tokens (list), renderer (optional), loop (boolean).
+
+### list_intents
+List all registered intent tokens with defaults.
+
+### list_renderers
+List available body renderers with status.
+
+### renderer_info
+Detailed info about one renderer.
+
+### check_boomy_mapping
+Preview how an intent maps to Boomy's specific actuators.
+
+### safety_status
+Read safety subsystem state.
+
+### safe_retreat
+Execute guarded reverse motion with timeout.
+
+### recordings_list
+List recorded intent streams.
+
+### replay_intent
+Replay a recorded stream (regression testing).
+
+### export_recordings
+Export to JSONL.
+
+## Renderers
+
+| Name | Body Type | Hardware | Status |
+|------|-----------|----------|--------|
+| boomy | Yahboom Raspbot V2 (differential + PTZ) | Real | Ready |
+| vrm | VRM 1.0 canonical humanoid | Preview | 17 poses |
+| reachy_mini | Stewart platform desktop (Pollen Robotics) | None | STUB |
+| bhl | Berkeley Humanoid Lite biped | None | STUB |
+
+## Intent Tokens
+17 tokens covering: attending, confused, nod, shake, sulk, bashful, amused, surprised, curious, alarmed, excited, tired, attentive_listen, celebrate, apologetic, present, idle.
+
+## Safety
+- DriveGeometryGuard: checks LIDAR clearance before retreat
+- TimeoutPolicy: auto-terminates persistent intents (sulk: 15s, tired: 60s) with recovery sequence
+
+## Stream Recording
+All intent expressions are recorded to SQLite for playback. Enables regression testing without live hardware.
+
+## Known Limitations
+- Boomy: No head pitch (nod is gimbal-only). No arms. No face expression.
+- VRM renderer: Pose-only, no animation playback yet (keyframes are static).
+- Reachy Mini: STUB — no hardware available for testing.
+- BHL: STUB — no hardware path without building the robot.
+
+## Development
+- uv sync to install
+- just serve-stdio for stdio mode
+- just serve-http for HTTP/MCP SSE mode (port 11130)
+- just lint / just fix for code quality
+- NEKOMIMI_YAHBOOM_URL env var for Boomy connection

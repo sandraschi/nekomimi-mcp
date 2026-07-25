@@ -1,0 +1,13 @@
+# nekomimi-mcp
+
+## Intro
+Substrate-independent embodiment layer. Express intent tokens across robot, VRM, and humanoid bodies without knowing which body you're in.
+
+## Key files
+- [README.md](./README.md)
+- [llms-full.txt](./llms-full.txt)
+- [src/nekomimi_mcp/server.py](./src/nekomimi_mcp/server.py) - FastMCP entry point
+- [src/nekomimi_mcp/intent/schema.py](./src/nekomimi_mcp/intent/schema.py) - Intent token enum and motion params
+- [src/nekomimi_mcp/intent/registry.py](./src/nekomimi_mcp/intent/registry.py) - Intent defaults
+- [src/nekomimi_mcp/renderers/](./src/nekomimi_mcp/renderers/) - Per-body renderer implementations
+- [src/nekomimi_mcp/tools.py](./src/nekomimi_mcp/tools.py) - MCP tool definitions

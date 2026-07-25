@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+reports/
+*.pyc
+.env
+node_modules/
+dist/
+webapp/dist/
+data/*.db
+data/*.jsonl
+*.egg-info/
+.ruff_cache/
+.vscode/

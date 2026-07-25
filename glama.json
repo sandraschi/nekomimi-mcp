@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "name": "nekomimi-mcp",
+  "displayName": "Nekomimi Embodiment Layer",
+  "description": "Substrate-independent embodiment layer for conversational NPCs. Express intent tokens across robot, VRM, and humanoid bodies.",
+  "categories": ["Robotics", "Animation", "Embodiment"],
+  "tags": ["intent", "renderer", "embodiment", "vrm", "robot", "gesture"],
+  "homepage": "https://github.com/sandraschi/nekomimi-mcp",
+  "icon": "assets/icon.png",
+  "license": "MIT"
+}

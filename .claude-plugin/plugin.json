@@ -1,0 +1,6 @@
+{
+  "name": "nekomimi-mcp",
+  "version": "0.1.0",
+  "description": "Substrate-independent embodiment layer for conversational NPCs",
+  "hooks": "../hooks/hooks.json"
+}
