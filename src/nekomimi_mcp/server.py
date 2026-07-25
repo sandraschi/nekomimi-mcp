@@ -19,6 +19,7 @@ from nekomimi_mcp.tools import (
     replay_intent_tool,
     safe_retreat_tool,
     safety_status_tool,
+    show_renderers_card,
 )
 
 logger = logging.getLogger("nekomimi-mcp")
@@ -43,6 +44,7 @@ def register_tools() -> None:
     mcp.tool(annotations={"readOnlyHint": True})(recordings_list_tool)
     mcp.tool(annotations={"readOnlyHint": False})(replay_intent_tool)
     mcp.tool(annotations={"readOnlyHint": False})(export_recordings_tool)
+    mcp.tool(app=True)(show_renderers_card)
 
 
 def main() -> int:

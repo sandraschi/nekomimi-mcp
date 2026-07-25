@@ -375,3 +375,40 @@ async def export_recordings_tool(
     """
     count = _recorder.export_jsonl(path)
     return {"success": True, "path": path, "count": count, "message": f"Exported {count} recordings to {path}"}
+
+
+async def show_renderers_card(
+    ctx: Context | None = None,
+) -> dict:
+    """Show registered renderers as a rich Prefab card.
+
+    Displays each renderer's name, body type, status, and capabilities
+    in an in-chat card. Falls back to plain text for hosts that don't
+    support Apps.
+
+    ## Return Format
+    {"success": bool, "content": str, "structured_content": {...}}
+    """
+    from prefab_ui import PrefabApp
+    from prefab_ui.components import Div, Heading
+
+    renderers = list_renderers()
+    app = PrefabApp(title="Registered Renderers")
+    for r in renderers:
+        status_icon = "🟢" if "ready" in r["status"] else "🟡" if "STUB" in r["status"] else "🔴"
+        app.add(Heading(r["name"], level=3))
+        app.add(Div(f"{status_icon} {r['status']}"))
+        app.add(Div(f"Body: {r['body_type']}"))
+        caps = ", ".join(r["capabilities"][:5])
+        app.add(Div(f"Capabilities: {caps}"))
+        app.add(Div(""))
+
+    content = f"**{len(renderers)} renderers registered:**\n" + "\n".join(
+        f"- **{r['name']}** ({r['body_type']}): {r['status']}" for r in renderers
+    )
+
+    return {
+        "success": True,
+        "content": content,
+        "structured_content": app,
+    }
