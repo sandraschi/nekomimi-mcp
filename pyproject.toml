@@ -32,7 +32,9 @@ ignore = ["E501"]
 [tool.ruff.format]
 quote-style = "double"
 
-[dependency-groups]
-dev = [
-    "pytest>=9.1.1",
-]
+
+                param($m)
+                $inner = $m.Groups[2].Value.Trim()
+                $insert = if ($inner) { "$inner, `"$RuffPyprojectSpec`"" } else { "`"$RuffPyprojectSpec`"" }
+                $m.Groups[1].Value + $insert + $m.Groups[3].Value
+            
