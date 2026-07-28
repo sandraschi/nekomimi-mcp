@@ -1,3 +1,5 @@
+set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
+
 set shell := ["powershell.exe", "-NoProfile", "-Command"]
 
 _uv := "C:\\Users\\sandr\\.local\\bin\\uv.exe"

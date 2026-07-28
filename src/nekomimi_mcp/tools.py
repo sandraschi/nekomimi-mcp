@@ -160,7 +160,12 @@ async def intent_stream_tool(
     # Record
     _recorder.record(stream, renderer or "all", results)
 
-    return {"success": True, "stream": results, "count": len(results), "message": f"Executed stream of {len(results)} token-renderer pairs"}
+    return {
+        "success": True,
+        "stream": results,
+        "count": len(results),
+        "message": f"Executed stream of {len(results)} token-renderer pairs",
+    }
 
 
 async def list_intents_tool(
@@ -174,7 +179,11 @@ async def list_intents_tool(
     ## Examples
     list_intents()
     """
-    return {"intents": list_intents(), "count": len(IntentToken), "message": f"{len(IntentToken)} registered intent tokens"}
+    return {
+        "intents": list_intents(),
+        "count": len(IntentToken),
+        "message": f"{len(IntentToken)} registered intent tokens",
+    }
 
 
 async def list_renderers_tool(
@@ -188,7 +197,11 @@ async def list_renderers_tool(
     ## Examples
     list_renderers()
     """
-    return {"renderers": list_renderers(), "count": len(RENDERER_REGISTRY), "message": f"{len(RENDERER_REGISTRY)} renderer(s) registered"}
+    return {
+        "renderers": list_renderers(),
+        "count": len(RENDERER_REGISTRY),
+        "message": f"{len(RENDERER_REGISTRY)} renderer(s) registered",
+    }
 
 
 async def renderer_info_tool(
@@ -238,7 +251,11 @@ async def check_boomy_mapping_tool(
     try:
         intent_token = IntentToken(token)
     except ValueError:
-        return {"success": False, "error": f"Unknown token '{token}'", "message": f"Unknown token '{token}'"}
+        return {
+            "success": False,
+            "error": f"Unknown token '{token}'",
+            "message": f"Unknown token '{token}'",
+        }
 
     r = BoomyRenderer()
     params = get_default_params(intent_token)
@@ -359,7 +376,12 @@ async def replay_intent_tool(
     replay_intent(recording_id=3, renderers=["vrm"])
     """
     results = await _player.replay(recording_id, renderers=renderers)
-    return {"success": True, "results": results, "count": len(results), "message": f"Replayed {len(results)} renderer results from recording {recording_id}"}
+    return {
+        "success": True,
+        "results": results,
+        "count": len(results),
+        "message": f"Replayed {len(results)} renderer results from recording {recording_id}",
+    }
 
 
 async def export_recordings_tool(
@@ -374,7 +396,12 @@ async def export_recordings_tool(
     {"success": bool, "path": str, "count": int}
     """
     count = _recorder.export_jsonl(path)
-    return {"success": True, "path": path, "count": count, "message": f"Exported {count} recordings to {path}"}
+    return {
+        "success": True,
+        "path": path,
+        "count": count,
+        "message": f"Exported {count} recordings to {path}",
+    }
 
 
 async def show_renderers_card(
