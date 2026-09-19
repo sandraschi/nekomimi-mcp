@@ -73,6 +73,7 @@ export default function HelpPage() {
 				{SECTIONS.map((section) => (
 					<div
 						key={section.title}
+						data-testid={`help-section-${section.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
 						className="bg-zinc-900 border border-zinc-800 rounded-xl p-4"
 					>
 						<div className="flex items-center gap-3 mb-3">
