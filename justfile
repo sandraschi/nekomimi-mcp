@@ -37,8 +37,7 @@ sync:
     {{_uv}} sync
 
 mcpb-pack:
-    $v = & {{_uv}} run python -c "import tomllib; f=open('pyproject.toml','rb'); d=tomllib.load(f); print(d['project']['version'])"
-    & {{_mcpb}} pack . "dist/nekomimi-mcp-v$v.mcpb"
+    pwsh.exe -NoProfile -ExecutionPolicy Bypass -File scripts/mcpb-pack.ps1
 
 mcpb-validate:
     & {{_mcpb}} validate .

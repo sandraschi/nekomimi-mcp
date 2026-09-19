@@ -7,6 +7,11 @@ node_modules/
 dist/
 webapp/dist/
 data/*.db
+src/data/*.db
+.coverage
+mcpb/
+webapp/test-results/
+webapp/playwright-report/
 _stale_ref/
 data/*.jsonl
 *.egg-info/

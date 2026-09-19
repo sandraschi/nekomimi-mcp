@@ -5,9 +5,9 @@ nekomimi-mcp is a substrate-independent embodiment layer for conversational NPCs
 
 Architecture: INTENT layer (LLM emits tokens) -> RENDER layer (per-body translators).
 
-## MCP Tools
+## MCP Tools (verb-led primaries; historic *_tool names are deprecated aliases)
 
-### intent_tool
+### express_intent
 Express a single intent token. Parameters:
 - token: One of: attending, confused, nod, shake, sulk, bashful, amused, surprised, curious, alarmed, excited, tired, attentive_listen, celebrate, apologetic, present, idle
 - renderer: Target body (boomy, vrm, reachy_mini, bhl) or None for all
@@ -19,7 +19,7 @@ Express a single intent token. Parameters:
 - hesitation: Initial delay
 - repeat: Repetitions (1-10)
 
-### intent_stream
+### play_intent_stream
 Execute a sequence of intents in order. Parameters: tokens (list), renderer (optional), loop (boolean).
 
 ### list_intents
@@ -28,35 +28,40 @@ List all registered intent tokens with defaults.
 ### list_renderers
 List available body renderers with status.
 
-### renderer_info
+### describe_renderer
 Detailed info about one renderer.
 
-### check_boomy_mapping
+### preview_boomy_mapping
 Preview how an intent maps to Boomy's specific actuators.
 
-### safety_status
+### get_safety_status
 Read safety subsystem state.
 
-### safe_retreat
+### retreat_safely
 Execute guarded reverse motion with timeout.
 
-### status
-Server status: uptime, tool count, renderer summary.
+### list_recordings
+List recorded intent streams.
 
-### shutdown
+### replay_recording
+Replay a recorded stream (regression testing).
+
+### export_recordings
+Export to JSONL.
+
+### get_status
+Server status: uptime, tool/alias counts, renderer summary.
+
+### shutdown_server
 Graceful shutdown (requires confirm=True).
 
 ### show_renderers_card
 Renderer list as a Prefab in-chat card.
 
-### recordings_list
-List recorded intent streams.
+## Prompts and resources
 
-### replay_intent
-Replay a recorded stream (regression testing).
-
-### export_recordings
-Export to JSONL.
+Prompts: nekomimi_intent_guide, nekomimi_character, renderer_comparison.
+Resources: skill://nekomimi-operator.
 
 ## Renderers
 
@@ -88,9 +93,12 @@ All intent expressions are recorded to SQLite for playback. Enables regression t
 - just serve-stdio for stdio mode
 - just serve-http for HTTP mode (port 11128)
 - just lint / just fix for code quality
+- just ci for the full gate (ruff, pyright, pytest, tsc, biome)
 - NEKOMIMI_YAHBOOM_URL env var for Boomy connection
 
 ## REST endpoints (HTTP mode, consumed by webapp + fleet launcher)
 - GET /health, GET /api/status, GET /api/skills (+ /api/skills/{name}),
   GET /api/capabilities, GET /api/v1/diagnostics, POST /api/shutdown
-- MCP itself on POST /mcp
+- GET /api/llm/discover|providers|models|onboarding, POST /api/llm/chat,
+  POST /api/chat (skill-first + offline fallback), GET /api/fleet/apps
+- MCP itself on POST /mcp (Accept: application/json, text/event-stream; SSE frames)
