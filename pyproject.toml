@@ -26,11 +26,25 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
+select = ["E", "F", "I", "N", "W", "UP", "T20"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"run_server.py" = ["T20"]
+"scripts/**/*" = ["T20"]
+"tests/**/*" = ["T20"]
+"_stale_ref/**/*" = ["T20"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+[dependency-groups]
+dev = [
+    "pillow>=12.3.0",
+    "pre-commit>=4.6.2",
+    "pytesseract>=0.3.13",
+    "pywinauto>=0.6.9",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.16.0,<0.17"]

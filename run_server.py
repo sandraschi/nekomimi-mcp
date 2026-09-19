@@ -1,17 +1,23 @@
 """PyInstaller entry point — starts the HTTP/uvicorn server."""
+
 import os
 import sys
 
 sys.path.insert(0, "src")
 
-import uvicorn
 
-port = int(os.getenv("PORT", "10700"))
-host = os.getenv("HOST", "127.0.0.1")
+def _main() -> int:
+    from nekomimi_mcp.server import main
 
-# Overwrite sys.argv to prevent PyInstaller from passing frozen args
-sys.argv = ["run_server.py", "--mode", "http", "--host", host, "--port", str(port)]
+    port = int(os.getenv("PORT", os.getenv("NEKOMIMI_PORT", "11128")))
+    host = os.getenv("HOST", "127.0.0.1")
 
-from nekomimi_mcp.server import main
+    # Overwrite sys.argv to prevent PyInstaller from passing frozen args.
+    # Must match server.py main(): it looks for "--http" and "--port <n>".
+    sys.argv = ["run_server.py", "--http", "--port", str(port), "--host", host]
 
-main()
+    return main()
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

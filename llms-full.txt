@@ -40,6 +40,15 @@ Read safety subsystem state.
 ### safe_retreat
 Execute guarded reverse motion with timeout.
 
+### status
+Server status: uptime, tool count, renderer summary.
+
+### shutdown
+Graceful shutdown (requires confirm=True).
+
+### show_renderers_card
+Renderer list as a Prefab in-chat card.
+
 ### recordings_list
 List recorded intent streams.
 
@@ -77,6 +86,11 @@ All intent expressions are recorded to SQLite for playback. Enables regression t
 ## Development
 - uv sync to install
 - just serve-stdio for stdio mode
-- just serve-http for HTTP/MCP SSE mode (port 11130)
+- just serve-http for HTTP mode (port 11128)
 - just lint / just fix for code quality
 - NEKOMIMI_YAHBOOM_URL env var for Boomy connection
+
+## REST endpoints (HTTP mode, consumed by webapp + fleet launcher)
+- GET /health, GET /api/status, GET /api/skills (+ /api/skills/{name}),
+  GET /api/capabilities, GET /api/v1/diagnostics, POST /api/shutdown
+- MCP itself on POST /mcp
