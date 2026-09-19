@@ -216,7 +216,9 @@ export default function AppLayout() {
 						>
 							{Math.round(zoom * 100)}%
 						</span>
-						<span className="text-xs text-zinc-600">v0.1.0</span>
+						<span className="text-xs text-zinc-600" title="App version">
+							v{__APP_VERSION__}
+						</span>
 					</div>
 				</header>
 

@@ -14,6 +14,7 @@ import {
 	emitIntent,
 	getOnboarding,
 	listIntents,
+	postChatStream,
 } from "../lib/api";
 import { useStore } from "../store";
 
@@ -65,6 +66,8 @@ export default function ChatPage() {
 	});
 	const [intentTokens, setIntentTokens] = useState<string[]>([]);
 	const [llmLabel, setLlmLabel] = useState("checking…");
+	const [llmLive, setLlmLive] = useState(false);
+	const [streamingText, setStreamingText] = useState<string | null>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
@@ -85,8 +88,10 @@ export default function ChatPage() {
 				setLlmLabel(
 					ob.configured ? `LLM: ${ob.provider}` : "offline intent matcher",
 				);
+				setLlmLive(!!ob.configured);
 			} catch {
 				setLlmLabel("offline intent matcher");
+				setLlmLive(false);
 			}
 		})();
 	}, []);
@@ -140,6 +145,29 @@ export default function ChatPage() {
 		setLoading(true);
 
 		try {
+			// Live provider: stream deltas so long answers render progressively.
+			if (llmLive) {
+				try {
+					setStreamingText("");
+					const history = chatHistory.map((m) => ({
+						role: m.role,
+						content: m.content,
+					}));
+					const { full } = await postChatStream(text, history, (f) =>
+						setStreamingText(f),
+					);
+					setStreamingText(null);
+					addChatMessage({
+						role: "assistant",
+						content: full,
+						ts: new Date().toISOString(),
+					});
+					return;
+				} catch {
+					setStreamingText(null);
+					/* fall through to non-streaming paths */
+				}
+			}
 			// Skill-first backend chat (skill preprompt + live provider when configured).
 			const history = chatHistory.map((m) => ({
 				role: m.role,
@@ -171,7 +199,15 @@ export default function ChatPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [input, loading, chatHistory, addChatMessage, localReply, pushTimeline]);
+	}, [
+		input,
+		loading,
+		llmLive,
+		chatHistory,
+		addChatMessage,
+		localReply,
+		pushTimeline,
+	]);
 
 	const handleExport = () => {
 		if (chatHistory.length === 0) return;
@@ -317,7 +353,7 @@ export default function ChatPage() {
 					</motion.div>
 				))}
 
-				{loading && (
+				{loading && streamingText === null && (
 					<div className="flex items-center gap-3 text-zinc-500 text-sm px-2">
 						<motion.div
 							animate={{ opacity: [0.3, 1, 0.3] }}
@@ -325,6 +361,22 @@ export default function ChatPage() {
 						>
 							Thinking...
 						</motion.div>
+					</div>
+				)}
+
+				{streamingText !== null && (
+					<div className="flex gap-3 justify-start">
+						<div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 mt-1">
+							<Bot className="h-4 w-4 text-amber-400" />
+						</div>
+						<div
+							data-testid="chat-streaming"
+							className="max-w-[75%] rounded-xl px-4 py-2.5 text-sm bg-zinc-800/70 text-zinc-300 border border-zinc-700/50"
+						>
+							<div className="whitespace-pre-wrap">
+								{streamingText || "Thinking..."}
+							</div>
+						</div>
 					</div>
 				)}
 			</div>

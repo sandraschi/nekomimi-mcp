@@ -243,6 +243,68 @@ export async function backendChat(
 	return (await r.json()) as ChatReply;
 }
 
+/** Streaming chat: resolves with the full text, calling onDelta per chunk. */
+export async function postChatStream(
+	message: string,
+	history: { role: string; content: string }[],
+	onDelta: (full: string) => void,
+): Promise<{ mode: string; full: string }> {
+	const r = await fetch(`${API_BASE}/api/chat`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "text/event-stream",
+		},
+		body: JSON.stringify({ message, history, stream: true }),
+	});
+	if (!r.ok || !r.body) {
+		throw new Error(`Chat stream failed: HTTP ${r.status}`);
+	}
+	const reader = r.body.getReader();
+	const decoder = new TextDecoder();
+	let buf = "";
+	let full = "";
+	let done = false;
+	let failure = "";
+	while (!done) {
+		const { value, done: d } = await reader.read();
+		done = d;
+		if (value) {
+			buf += decoder.decode(value, { stream: true });
+			const parts = buf.split("\n\n");
+			buf = parts.pop() || "";
+			for (const part of parts) {
+				for (const line of part.split("\n")) {
+					const trimmed = line.trim();
+					if (!trimmed.startsWith("data:")) continue;
+					const payload = trimmed.slice(5).trim();
+					if (!payload || payload === "[DONE]") continue;
+					try {
+						const obj = JSON.parse(payload) as {
+							error?: string;
+							choices?: { delta?: { content?: string } }[];
+						};
+						if (obj.error) {
+							failure = obj.error;
+							done = true;
+							break;
+						}
+						const delta = obj.choices?.[0]?.delta?.content || "";
+						if (delta) {
+							full += delta;
+							onDelta(full);
+						}
+					} catch {
+						/* partial frame, wait for more */
+					}
+				}
+			}
+		}
+	}
+	if (failure) throw new Error(failure);
+	return { mode: "live", full };
+}
+
 export interface FleetApp {
 	name: string;
 	role: string;
