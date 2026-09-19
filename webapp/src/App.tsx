@@ -1,25 +1,25 @@
-import { Routes, Route } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import AppLayout from "./AppLayout";
-import DashboardPage from "./pages/DashboardPage";
-import ToolsPage from "./pages/ToolsPage";
-import SkillsPage from "./pages/SkillsPage";
 import ChatPage from "./pages/ChatPage";
+import DashboardPage from "./pages/DashboardPage";
+import HelpPage from "./pages/HelpPage";
 import LogsPage from "./pages/LogsPage";
 import SettingsPage from "./pages/SettingsPage";
-import HelpPage from "./pages/HelpPage";
+import SkillsPage from "./pages/SkillsPage";
+import ToolsPage from "./pages/ToolsPage";
 
 export default function App() {
-  return (
-    <Routes>
-      <Route element={<AppLayout />}>
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/tools" element={<ToolsPage />} />
-        <Route path="/skills" element={<SkillsPage />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/logs" element={<LogsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/help" element={<HelpPage />} />
-      </Route>
-    </Routes>
-  );
+	return (
+		<Routes>
+			<Route element={<AppLayout />}>
+				<Route path="/" element={<DashboardPage />} />
+				<Route path="/tools" element={<ToolsPage />} />
+				<Route path="/skills" element={<SkillsPage />} />
+				<Route path="/chat" element={<ChatPage />} />
+				<Route path="/logs" element={<LogsPage />} />
+				<Route path="/settings" element={<SettingsPage />} />
+				<Route path="/help" element={<HelpPage />} />
+			</Route>
+		</Routes>
+	);
 }

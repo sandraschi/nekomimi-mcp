@@ -1,28 +1,30 @@
 @import "tailwindcss";
 
 @layer base {
-  body {
-    color-scheme: dark;
-    @apply bg-zinc-950 text-zinc-100 font-sans antialiased;
-    margin: 0;
-  }
+	body {
+		color-scheme: dark;
+		@apply bg-zinc-950 text-zinc-100 font-sans antialiased;
+		margin: 0;
+	}
 
-  select, input, textarea {
-    color-scheme: dark;
-  }
+	select,
+	input,
+	textarea {
+		color-scheme: dark;
+	}
 
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #27272a;
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #3f3f46;
-  }
+	::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	::-webkit-scrollbar-thumb {
+		background: #27272a;
+		border-radius: 3px;
+	}
+	::-webkit-scrollbar-thumb:hover {
+		background: #3f3f46;
+	}
 }
