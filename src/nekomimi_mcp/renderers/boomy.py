@@ -139,7 +139,7 @@ class BoomyRenderer(BaseRenderer):
                 await self._call("play_beep", None, None)
 
             case IntentToken.NOD:
-                # Severely degraded — gimbal tilt only
+                # Severely degraded - gimbal tilt only
                 for _ in range(int(params.repeat_count)):
                     await self._call("camera_up", _tilt_step, None)
                     await self._call("camera_down", _tilt_step, None)
@@ -155,10 +155,10 @@ class BoomyRenderer(BaseRenderer):
                 await self._call("camera_set_pos", 110, 150)
                 await self._call("backward", _drive_speed * 0.3, None)
                 await self._call("led", 0, 0, 32)
-                # Wait via sleep — hold duration is policy-managed outside
+                # Wait via sleep - hold duration is policy-managed outside
 
             case IntentToken.BASHFUL:
-                # Degraded — no head-tilt possible, use gimbal aversion
+                # Degraded - no head-tilt possible, use gimbal aversion
                 await self._call("camera_set_pos", 120, 110)
                 await self._call("turn_left", _drive_speed * 0.3, None)
                 await self._call("led", 64, 16, 32)

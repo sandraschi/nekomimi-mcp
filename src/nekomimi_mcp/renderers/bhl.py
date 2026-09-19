@@ -5,7 +5,7 @@ from nekomimi_mcp.renderers.base import BaseRenderer, RendererCapability
 
 # BHL arm joint target positions (degrees) for each intent.
 # Joints: shoulder_pitch/roll/yaw, elbow_pitch/yaw (5 per arm)
-# Legs not specified here — gait is controlled separately.
+# Legs not specified here - gait is controlled separately.
 
 _BHL_ARM_POSES: dict[str, dict] = {
     "attending": {
@@ -181,7 +181,7 @@ class BHLRenderer(BaseRenderer):
     ]
 
     def status(self) -> str:
-        return "STUB — requires BHL hardware or Isaac Lab sim"
+        return "STUB - requires BHL hardware or Isaac Lab sim"
 
     def can_express(self, token: IntentToken) -> bool:
         return token.value in _BHL_ARM_POSES
@@ -207,5 +207,5 @@ class BHLRenderer(BaseRenderer):
             "params": params.model_dump() if params else None,
             "joint_count": sum(len(v) for v in pose.values()),
             "simulated": True,
-            "note": "STUB — requires BHL hardware or Isaac Lab sim. No neck/face expression available.",
+            "note": "STUB - requires BHL hardware or Isaac Lab sim. No neck/face expression available.",
         }

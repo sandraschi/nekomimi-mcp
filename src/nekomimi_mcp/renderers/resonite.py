@@ -1,4 +1,4 @@
-"""Resonite renderer — delegates to resonite-mcp via HTTP.
+"""Resonite renderer - delegates to resonite-mcp via HTTP.
 
 STUB STATUS: This renderer has the interface defined but the
 actual calls to resonite-mcp are not yet implemented. The
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class ResoniteRenderer(Renderer):
-    """STUB — delegates intent tokens to resonite-mcp for VRM avatar in Resonite.
+    """STUB - delegates intent tokens to resonite-mcp for VRM avatar in Resonite.
 
     Will translate intent tokens to VRM bone poses via the Resonite
     avatar's constraint system. Resonite avatars use VRM 1.0 compatible
@@ -37,7 +37,7 @@ class ResoniteRenderer(Renderer):
         return set(IntentToken)
 
     async def execute(self, frame: IntentFrame) -> str:
-        logger.warning("ResoniteRenderer.execute: STUB — no resonite-mcp calls implemented")
+        logger.warning("ResoniteRenderer.execute: STUB - no resonite-mcp calls implemented")
         return f"STUB: would execute {frame.token.value} on Resonite avatar"
 
     async def status(self) -> dict:
@@ -46,7 +46,7 @@ class ResoniteRenderer(Renderer):
             "connected": self._connected,
             "tokens": len(self.supported_tokens),
             "stub": True,
-            "note": "STUB — implement HTTP calls to resonite-mcp",
+            "note": "STUB - implement HTTP calls to resonite-mcp",
         }
 
     async def stop(self) -> None:

@@ -7,7 +7,7 @@ from nekomimi_mcp.renderers.base import BaseRenderer, RendererCapability
 
 # Canonical VRM 1.0 bone pose keyframes for each intent token.
 # Units are local Euler rotations (degrees) on the VRM normalized humanoid bone set.
-# Only bones that move are specified — others inherit from neutral T-pose.
+# Only bones that move are specified - others inherit from neutral T-pose.
 
 _VRM_POSES: dict[str, dict[str, dict[str, float]]] = {
     "attending": {
@@ -126,7 +126,7 @@ class VrmRenderer(BaseRenderer):
         self._poses = _VRM_POSES
 
     def status(self) -> str:
-        return "available (no hardware — preview only)"
+        return "available (no hardware - preview only)"
 
     def can_express(self, token: IntentToken) -> bool:
         return token in self._poses

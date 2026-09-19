@@ -103,7 +103,7 @@ class ReachyMiniRenderer(BaseRenderer):
     ]
 
     def status(self) -> str:
-        return "STUB — no hardware, sim not connected"
+        return "STUB - no hardware, sim not connected"
 
     def can_express(self, token: IntentToken) -> bool:
         return token.value in _REACHY_MAPPING
@@ -128,5 +128,5 @@ class ReachyMiniRenderer(BaseRenderer):
             "mapping": mapping,
             "params": params.model_dump() if params else None,
             "simulated": True,
-            "note": "STUB — requires Reachy Mini hardware or MuJoCo sim",
+            "note": "STUB - requires Reachy Mini hardware or MuJoCo sim",
         }
