@@ -1,4 +1,9 @@
-# nekomimi-mcp — Copilot instructions
+---
+name: nekomimi
+description: Substrate-independent embodiment layer — express intent tokens across robot, VRM, and humanoid bodies without knowing which body you are in.
+---
+
+# nekomimi skill
 
 ## Session Context (Nekomimi Embodiment Layer)
 

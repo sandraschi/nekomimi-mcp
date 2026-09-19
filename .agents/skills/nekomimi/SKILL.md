@@ -1,4 +1,4 @@
-# nekomimi-mcp — Copilot instructions
+# nekomimi skill (Antigravity)
 
 ## Session Context (Nekomimi Embodiment Layer)
 
