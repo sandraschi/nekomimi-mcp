@@ -5,7 +5,13 @@ import sqlite3
 import time
 from pathlib import Path
 
-from nekomimi_mcp.intent.schema import IntentStream
+from nekomimi_mcp.intent.schema import IntentStream, IntentToken
+
+
+def _token_str(t: IntentToken | str) -> str:
+    # IntentStream coerces StrEnum members to plain str on validation —
+    # accept both so recording never crashes the calling tool.
+    return t.value if isinstance(t, IntentToken) else str(t)
 
 
 class IntentRecorder:
@@ -22,7 +28,7 @@ class IntentRecorder:
                 "INSERT INTO recordings (renderer, token_sequence, params_json, results_json, recorded_at) VALUES (?, ?, ?, ?, ?)",
                 (
                     renderer,
-                    json.dumps([t.value for t in stream.tokens]),
+                    json.dumps([_token_str(t) for t in stream.tokens]),
                     stream.params.model_dump_json(),
                     json.dumps(results),
                     int(time.time()),

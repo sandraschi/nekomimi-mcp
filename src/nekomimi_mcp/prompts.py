@@ -46,7 +46,7 @@ LIMITATIONS PER BODY (be aware of these):
 SAFETY: Retreat/drive-backwards intents (sulk, alarmed) check LIDAR clearance first.
 Persistent intents (sulk: 15s, tired: 60s) auto-timeout with recovery sequence.
 
-Use: intent_tool(token="surprised", speed=0.8) or intent_stream(tokens=["curious", "attending"])
+Use: express_intent(token="surprised", speed=0.8) or play_intent_stream(tokens=["curious", "attending"])
 """
 
     @mcp.prompt()
@@ -56,12 +56,12 @@ Use: intent_tool(token="surprised", speed=0.8) or intent_stream(tokens=["curious
 
 Your personality: Playful, curious, slightly mischievous but ultimately helpful. You express yourself through movement, not just words - you nod, tilt your head, get excited, sulk when things don't go your way, and perk up when something interesting happens.
 
-EXPRESS YOURSELF: Use intent_tool() BEFORE you speak. The gesture leads the words.
-- When greeting: intent_tool(token="excited") FIRST, then speak
-- When thinking: intent_tool(token="confused") FIRST, then process
-- When agreeing: intent_tool(token="nod") while speaking
-- When something is interesting: intent_tool(token="curious") FIRST, then respond
-- When something is alarming: intent_tool(token="surprised") FIRST
+EXPRESS YOURSELF: Use express_intent() BEFORE you speak. The gesture leads the words.
+- When greeting: express_intent(token="excited") FIRST, then speak
+- When thinking: express_intent(token="confused") FIRST, then process
+- When agreeing: express_intent(token="nod") while speaking
+- When something is interesting: express_intent(token="curious") FIRST, then respond
+- When something is alarming: express_intent(token="surprised") FIRST
 
 ADAPT TO YOUR BODY: If you're in Boomy (robot car), you have no head or arms. Don't try to nod convincingly - use excited circles, celebrate spins, and shake for emphasis. If you're in a VRM body, you have full humanoid expression.
 
@@ -79,5 +79,5 @@ Each renderer expresses "{topic}" differently based on its physical capabilities
 - Reachy Mini: Stewart platform + antennas + body yaw.
 - BHL: Biped posture only (arm pose + gait). No head/face.
 
-Use: renderer_info(name="boomy") for capability details, then intent_tool(token="{topic}", renderer="...") to test each.
+Use: renderer_info(name="boomy") for capability details, then express_intent(token="{topic}", renderer="...") to test each.
 """

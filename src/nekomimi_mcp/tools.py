@@ -21,6 +21,24 @@ _policy = TimeoutPolicy()
 
 _STARTED_AT = time.time()
 
+_OBJ = {"type": "object", "additionalProperties": True}
+
+
+def _out(properties: dict[str, dict], required: list[str] | None = None) -> dict:
+    """Loose output schema: documents return shape without breaking error paths."""
+    schema: dict = {"type": "object", "properties": properties, "additionalProperties": True}
+    if required:
+        schema["required"] = required
+    return schema
+
+
+_STR = {"type": "string"}
+_NUM = {"type": "number"}
+_INT = {"type": "integer"}
+_BOOL = {"type": "boolean"}
+_ARR = {"type": "array"}
+_OBJ_PROP = {"type": "object"}
+
 
 async def intent_tool(
     ctx: Context | None = None,
@@ -57,8 +75,8 @@ async def intent_tool(
     {"success": bool, "token": str, "renderer_results": [{"renderer": str, "success": bool, ...}], "timing": {...}}
 
     ## Examples
-    intent_tool(token="surprised", speed=0.8, intensity=0.9)
-    intent_tool(token="sulk", renderer="boomy", speed=0.2, hold_seconds=15.0)
+    express_intent(token="surprised", speed=0.8, intensity=0.9)
+    express_intent(token="sulk", renderer="boomy", speed=0.2, hold_seconds=15.0)
     """
     try:
         intent_token = IntentToken(token)
@@ -139,8 +157,8 @@ async def intent_stream_tool(
     {"success": bool, "stream": [{"token": str, "result": {...}}], "count": int}
 
     ## Examples
-    intent_stream(tokens=["surprised", "curious", "attending"])
-    intent_stream(tokens=["excited", "celebrate", "idle"], renderer="boomy")
+    play_intent_stream(tokens=["surprised", "curious", "attending"])
+    play_intent_stream(tokens=["excited", "celebrate", "idle"], renderer="boomy")
     """
     validated = []
     for t in tokens:
@@ -435,18 +453,19 @@ async def show_renderers_card(
     show_renderers_card()
     """
     from prefab_ui import PrefabApp
-    from prefab_ui.components import Div, Heading
+    from prefab_ui.components import Heading, Text
 
     renderers = list_renderers()
-    app = PrefabApp(title="Registered Renderers")
-    for r in renderers:
-        status_icon = "🟢" if "ready" in r["status"] else "🟡" if "STUB" in r["status"] else "🔴"
-        app.add(Heading(r["name"], level=3))
-        app.add(Div(f"{status_icon} {r['status']}"))
-        app.add(Div(f"Body: {r['body_type']}"))
-        caps = ", ".join(r["capabilities"][:5])
-        app.add(Div(f"Capabilities: {caps}"))
-        app.add(Div(""))
+    with PrefabApp(title="Registered Renderers") as app:
+        for r in renderers:
+            status_icon = (
+                "🟢" if "ready" in r["status"] else "🟡" if "STUB" in r["status"] else "🔴"
+            )
+            Heading(content=r["name"], level=3)
+            Text(content=f"{status_icon} {r['status']}")
+            Text(content=f"Body: {r['body_type']}")
+            caps = ", ".join(r["capabilities"][:5])
+            Text(content=f"Capabilities: {caps}")
 
     content = f"**{len(renderers)} renderers registered:**\n" + "\n".join(
         f"- **{r['name']}** ({r['body_type']}): {r['status']}" for r in renderers
@@ -477,15 +496,16 @@ async def status_tool(
     from nekomimi_mcp.renderers import RENDERER_REGISTRY
 
     uptime_s = time.time() - _STARTED_AT
-    renderers = [
-        {"name": name, "status": get_renderer(name).status() if get_renderer(name) else "missing"}
-        for name in RENDERER_REGISTRY.keys()
-    ]
+    renderers = []
+    for name in RENDERER_REGISTRY.keys():
+        r = get_renderer(name)
+        renderers.append({"name": name, "status": r.status() if r else "missing"})
     return {
         "success": True,
         "name": "nekomimi-mcp",
         "uptime_seconds": round(uptime_s, 1),
-        "tools": 14,
+        "tools": len(PRIMARY_TOOL_NAMES) + 1,
+        "aliases": len(PRIMARY_TOOL_NAMES),
         "renderers": renderers,
         "safety": "nominal",
         "message": f"nekomimi-mcp up {round(uptime_s, 1)}s, {len(renderers)} renderer(s), safety nominal",
@@ -526,3 +546,124 @@ async def shutdown_tool(
         "action": f"exiting in {delay_seconds}s",
         "message": f"nekomimi-mcp shutting down in {delay_seconds}s.",
     }
+
+
+# Canonical verb-led tool names. Historic *_tool names stay registered as
+# deprecated aliases (removed in 0.2.0) so existing clients keep working.
+PRIMARY_TOOL_NAMES: dict[str, str] = {
+    "intent_tool": "express_intent",
+    "intent_stream_tool": "play_intent_stream",
+    "list_intents_tool": "list_intents",
+    "list_renderers_tool": "list_renderers",
+    "renderer_info_tool": "describe_renderer",
+    "check_boomy_mapping_tool": "preview_boomy_mapping",
+    "safety_status_tool": "get_safety_status",
+    "safe_retreat_tool": "retreat_safely",
+    "recordings_list_tool": "list_recordings",
+    "replay_intent_tool": "replay_recording",
+    "export_recordings_tool": "export_recordings",
+    "status_tool": "get_status",
+    "shutdown_tool": "shutdown_server",
+}
+
+# Loose output schemas (success/message required; everything else documented
+# but optional so error paths still validate). show_renderers_card is excluded:
+# its structured_content is a PrefabApp object, not schema-validatable data.
+OUTPUT_SCHEMAS: dict[str, dict] = {
+    "intent_tool": _out(
+        {
+            "success": _BOOL,
+            "token": _STR,
+            "renderer_results": _ARR,
+            "timing": _OBJ_PROP,
+            "repeat": _INT,
+            "message": _STR,
+        },
+        ["success", "message"],
+    ),
+    "intent_stream_tool": _out(
+        {"success": _BOOL, "stream": _ARR, "count": _INT, "message": _STR},
+        ["success", "message"],
+    ),
+    "list_intents_tool": _out(
+        {"intents": _ARR, "count": _INT, "message": _STR},
+        ["intents", "count", "message"],
+    ),
+    "list_renderers_tool": _out(
+        {"renderers": _ARR, "count": _INT, "message": _STR},
+        ["renderers", "count", "message"],
+    ),
+    "renderer_info_tool": _out(
+        {
+            "name": _STR,
+            "body_type": _STR,
+            "capabilities": _ARR,
+            "status": _STR,
+            "expressible_tokens": _ARR,
+            "success": _BOOL,
+            "error": _STR,
+            "message": _STR,
+        },
+        ["message"],
+    ),
+    "check_boomy_mapping_tool": _out(
+        {
+            "token": _STR,
+            "expressible": _BOOL,
+            "limitations": _ARR,
+            "mapping": _OBJ_PROP,
+            "success": _BOOL,
+            "error": _STR,
+            "message": _STR,
+        },
+        ["message"],
+    ),
+    "safety_status_tool": _out(
+        {
+            "success": _BOOL,
+            "drive_guard": _OBJ_PROP,
+            "timeout_policy": _OBJ_PROP,
+            "message": _STR,
+        },
+        ["success", "message"],
+    ),
+    "safe_retreat_tool": _out(
+        {
+            "success": _BOOL,
+            "retreat_allowed": _BOOL,
+            "obstacle_clear": _BOOL,
+            "action": _STR,
+            "message": _STR,
+        },
+        ["success", "message"],
+    ),
+    "recordings_list_tool": _out(
+        {"recordings": _ARR, "count": _INT, "message": _STR},
+        ["recordings", "count", "message"],
+    ),
+    "replay_intent_tool": _out(
+        {"success": _BOOL, "results": _ARR, "count": _INT, "message": _STR},
+        ["success", "message"],
+    ),
+    "export_recordings_tool": _out(
+        {"success": _BOOL, "path": _STR, "count": _INT, "message": _STR},
+        ["success", "message"],
+    ),
+    "status_tool": _out(
+        {
+            "success": _BOOL,
+            "name": _STR,
+            "uptime_seconds": _NUM,
+            "tools": _INT,
+            "aliases": _INT,
+            "renderers": _ARR,
+            "safety": _STR,
+            "message": _STR,
+        },
+        ["success", "message"],
+    ),
+    "shutdown_tool": _out(
+        {"success": _BOOL, "action": _STR, "message": _STR},
+        ["success", "message"],
+    ),
+}
