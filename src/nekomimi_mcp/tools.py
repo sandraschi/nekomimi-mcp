@@ -244,8 +244,8 @@ async def renderer_info_tool(
     {"name": str, "body_type": str, "capabilities": [str], "status": str, "expressible_tokens": [str]}
 
     ## Examples
-    renderer_info(name="boomy")
-    renderer_info(name="vrm")
+    describe_renderer(name="boomy")
+    describe_renderer(name="vrm")
     """
     r = get_renderer(name)
     if not r:
@@ -273,8 +273,8 @@ async def check_boomy_mapping_tool(
     {"token": str, "expressible": bool, "limitations": [str], "motion_plan": [...]}
 
     ## Examples
-    check_boomy_mapping(token="nod")
-    check_boomy_mapping(token="surprised", include_motion=True)
+    preview_boomy_mapping(token="nod")
+    preview_boomy_mapping(token="surprised", include_motion=True)
     """
     from nekomimi_mcp.renderers.boomy import BoomyRenderer
 
@@ -307,7 +307,7 @@ async def safety_status_tool(
     {"success": bool, "drive_guard": {...}, "timeout_policy": {...}, "message": str}
 
     ## Examples
-    safety_status()
+    get_safety_status()
     """
     return {
         "success": True,
@@ -337,7 +337,7 @@ async def safe_retreat_tool(
     {"success": bool, "retreat_allowed": bool, "obstacle_clear": bool, "action": str}
 
     ## Examples
-    safe_retreat(check_obstacle=True)
+    retreat_safely(check_obstacle=True)
     """
     import time as _time
 
@@ -380,17 +380,19 @@ async def recordings_list_tool(
     ctx: Context | None = None,
     limit: Annotated[int, Field(description="Max recordings to return", ge=1, le=100)] = 20,
     renderer: Annotated[str | None, Field(description="Filter by renderer name")] = None,
+    offset: Annotated[int, Field(description="Skip N newest recordings", ge=0)] = 0,
 ) -> dict:
     """List recorded intent streams for playback and regression testing.
 
     ## Return Format
-    {"recordings": [...], "count": int}
+    {"recordings": [...], "count": int, "message": str}
 
     ## Examples
-    recordings_list(limit=10)
-    recordings_list(renderer="boomy")
+    list_recordings(limit=10)
+    list_recordings(renderer="boomy")
+    list_recordings(limit=10, offset=10)
     """
-    recs = _recorder.list_recordings(limit=limit, renderer=renderer)
+    recs = _recorder.list_recordings(limit=limit, renderer=renderer, offset=offset)
     return {"recordings": recs, "count": len(recs), "message": f"{len(recs)} recording(s) found"}
 
 
@@ -405,8 +407,8 @@ async def replay_intent_tool(
     {"success": bool, "results": [...], "count": int}
 
     ## Examples
-    replay_intent(recording_id=1)
-    replay_intent(recording_id=3, renderers=["vrm"])
+    replay_recording(recording_id=1)
+    replay_recording(recording_id=3, renderers=["vrm"])
     """
     results = await _player.replay(recording_id, renderers=renderers)
     return {
@@ -577,7 +579,7 @@ async def status_tool(
     {"success": bool, "name": str, "tools": int, "renderers": [...], "safety": str, "message": str}
 
     ## Examples
-    status()
+    get_status()
     """
     from nekomimi_mcp.renderers import RENDERER_REGISTRY
 
@@ -617,8 +619,8 @@ async def shutdown_tool(
     {"success": bool, "action": str, "message": str}
 
     ## Examples
-    shutdown(confirm=True)
-    shutdown(confirm=True, delay_seconds=1.0)
+    shutdown_server(confirm=True)
+    shutdown_server(confirm=True, delay_seconds=1.0)
     """
     import os
     import threading

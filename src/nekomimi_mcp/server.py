@@ -169,7 +169,7 @@ def _register_rest_routes(app, port: int) -> None:
     from pathlib import Path
 
     from starlette.requests import Request
-    from starlette.responses import JSONResponse, PlainTextResponse
+    from starlette.responses import JSONResponse, PlainTextResponse, Response
 
     skills_dir = Path(__file__).resolve().parent / "skills"
 
@@ -338,7 +338,7 @@ def _register_rest_routes(app, port: int) -> None:
                 {"success": False, "error": str(e), "message": str(e)}, status_code=409
             )
 
-    async def chat(request: Request) -> JSONResponse:
+    async def chat(request: Request) -> Response:
         """POST /api/chat — skill-first chat with declared local fallback.
 
         Tries: skill preprompt + live provider. Falls back (mode=local-fallback)

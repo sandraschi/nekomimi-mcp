@@ -79,5 +79,5 @@ Each renderer expresses "{topic}" differently based on its physical capabilities
 - Reachy Mini: Stewart platform + antennas + body yaw.
 - BHL: Biped posture only (arm pose + gait). No head/face.
 
-Use: renderer_info(name="boomy") for capability details, then express_intent(token="{topic}", renderer="...") to test each.
+Use: describe_renderer(name="boomy") for capability details, then express_intent(token="{topic}", renderer="...") to test each.
 """

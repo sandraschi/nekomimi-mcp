@@ -39,17 +39,20 @@ class IntentRecorder:
         finally:
             conn.close()
 
-    def list_recordings(self, limit: int = 20, renderer: str | None = None) -> list[dict]:
+    def list_recordings(
+        self, limit: int = 20, renderer: str | None = None, offset: int = 0
+    ) -> list[dict]:
         conn = sqlite3.connect(self._db_path)
         try:
             if renderer:
                 rows = conn.execute(
-                    "SELECT * FROM recordings WHERE renderer=? ORDER BY id DESC LIMIT ?",
-                    (renderer, limit),
+                    "SELECT * FROM recordings WHERE renderer=? ORDER BY id DESC LIMIT ? OFFSET ?",
+                    (renderer, limit, offset),
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT * FROM recordings ORDER BY id DESC LIMIT ?", (limit,)
+                    "SELECT * FROM recordings ORDER BY id DESC LIMIT ? OFFSET ?",
+                    (limit, offset),
                 ).fetchall()
             return [_row_to_dict(r) for r in rows]
         finally:
