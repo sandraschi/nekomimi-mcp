@@ -15,11 +15,11 @@ attending, confused, nod, shake, sulk, bashful, amused, surprised, curious, alar
 - hold_seconds: Sustain end pose
 
 ## Available Tools
-- intent_tool(token, timing_seconds, speed, intensity, ...) — primary expression
-- intent_stream(tokens, ...) — sequence of intents
+- express_intent(token, timing_seconds, speed, intensity, ...) — primary expression
+- play_intent_stream(tokens, ...) — sequence of intents
 - list_intents() — see all tokens
 - list_renderers() — see connected bodies
-- renderer_info(name) — capabilities of a body
+- describe_renderer(name) — capabilities of a body
 
 ## Body Limitations
 - Boomy (robot car): No head, no arms. Use shake/excited/celebrate for best effect.
@@ -28,4 +28,4 @@ attending, confused, nod, shake, sulk, bashful, amused, surprised, curious, alar
 - BHL: STUB — needs hardware.
 
 ## Best Practice
-Lead with gesture: emit intent_tool BEFORE speaking. Hesitation (0.3s) reads as thoughtful.
+Lead with gesture: emit express_intent BEFORE speaking. Hesitation (0.3s) reads as thoughtful.

@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.entry-points.'mcp.server']
-nekomimi-mcp = "nekomimi_mcp:main"
+nekomimi-mcp = "nekomimi_mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -35,14 +35,26 @@ ignore = ["E501"]
 "tests/**/*" = ["T20"]
 "_stale_ref/**/*" = ["T20"]
 
-[tool.ruff.format]
-quote-style = "double"
+[tool.pytest.ini_options]
+addopts = ["--cov=nekomimi_mcp", "--cov-report=term-missing", "--cov-fail-under=55"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src/nekomimi_mcp"]
+omit = ["*/tests/*", "*/_stale_ref/*"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "basic"
 
 [dependency-groups]
 dev = [
     "pillow>=12.3.0",
     "pre-commit>=4.6.2",
+    "pyright>=1.1.414",
     "pytesseract>=0.3.13",
+    "pytest-cov>=7.1.0",
     "pywinauto>=0.6.9",
 ]
 
