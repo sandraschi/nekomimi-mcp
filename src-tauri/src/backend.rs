@@ -98,15 +98,35 @@ pub fn materialize_backend(app: &AppHandle) -> Result<PathBuf, String> {
 fn free_port(port: u16) {
     #[cfg(windows)]
     {
+        // Layer 1: Stop-Process on the owning PID (clean death for managed children).
+        // Layer 2: taskkill /F /T (force tree-kill for orphans the first pass misses).
         let script = format!(
-            "Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue \
-            | ForEach-Object {{ taskkill /F /PID `$_.OwningProcess /T 2>$null }}"
+            "$c = Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue; \
+            if ($c) {{ $p = $c.OwningProcess | Select-Object -Unique; \
+            Stop-Process -Id $p -ErrorAction SilentlyContinue; \
+            Start-Sleep -Milliseconds 800; \
+            $c2 = Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue; \
+            if ($c2) {{ $c2 | ForEach-Object {{ taskkill /F /PID `$_.OwningProcess /T 2>$null }} }} }}"
         );
         let _ = Command::new("powershell.exe")
             .args(["-NoProfile", "-Command", &script])
             .stdout(Stdio::null()).stderr(Stdio::null())
             .status();
-        thread::sleep(Duration::from_millis(500));
+        // Layer 3: poll up to 30s for the port to actually free (never assume the kill landed).
+        for _ in 0..60 {
+            let probe = format!(
+                "Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue"
+            );
+            let free = Command::new("powershell.exe")
+                .args(["-NoProfile", "-Command", &probe])
+                .output()
+                .map(|o| o.stdout.is_empty())
+                .unwrap_or(true);
+            if free {
+                break;
+            }
+            thread::sleep(Duration::from_millis(500));
+        }
     }
 }
 
@@ -115,6 +135,23 @@ fn stop_managed_child(state: &BackendProcess) {
         let _ = child.kill();
         let _ = child.wait();
     }
+}
+
+fn wait_backend_ready(port: u16, timeout: Duration) -> bool {
+    use std::net::TcpStream;
+
+    let start = std::time::Instant::now();
+    while start.elapsed() < timeout {
+        let addr: std::net::SocketAddr = format!("127.0.0.1:{port}").parse().unwrap_or_else(|_| {
+            use std::net::{IpAddr, Ipv4Addr};
+            std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port)
+        });
+        if TcpStream::connect_timeout(&addr, Duration::from_millis(500)).is_ok() {
+            return true;
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+    false
 }
 
 pub fn spawn_backend(app: AppHandle, state: &BackendProcess) -> Result<String, String> {
@@ -167,7 +204,18 @@ pub fn spawn_backend(app: AppHandle, state: &BackendProcess) -> Result<String, S
         thread::spawn(move || watch_backend_stream(err, app_handle));
     }
 
-    Ok(format!("Backend starting on port 11128"))
+    // TCP readiness poll: the stream watcher catches the log line, this proves the port serves.
+    if wait_backend_ready(BACKEND_PORT, Duration::from_secs(30)) {
+        log_line(&app, &format!("backend TCP ready on port {BACKEND_PORT}"));
+        let _ = app.emit("backend-status", "ready");
+    } else {
+        log_line(
+            &app,
+            &format!("WARNING: backend did not open port {BACKEND_PORT} within 30s"),
+        );
+    }
+
+    Ok(format!("Backend starting on port {BACKEND_PORT}"))
 }
 
 fn watch_backend_stream<R: std::io::Read + Send + 'static>(stream: R, app: AppHandle) {

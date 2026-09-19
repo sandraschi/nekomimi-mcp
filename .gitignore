@@ -22,4 +22,5 @@ data/*.jsonl
 *.bak.*
 native/target/
 native/gen/
+src-tauri/Cargo.lock
 mcpb/src/

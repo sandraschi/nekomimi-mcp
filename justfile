@@ -62,6 +62,11 @@ e2e:
 # CUA webapp test (browser-driven pre-Tauri pass)
 cua-webapp-test: e2e
 
+# Release certification: full gate + e2e + bundle validation
+certify: ci e2e
+    {{_uv}} run python -c "import json; d=json.load(open('assets/prompts/examples.json')); s=open('assets/prompts/system.md').read().split(); u=open('assets/prompts/user.md').read().split(); assert len(d)>=100 and len(s)>=3000 and len(u)>=4000, 'MCPB 3-4-100 FAIL'; print(f'certify OK: {len(s)}/{len(u)}/{len(d)}'))"
+    Write-Host "Certified." -ForegroundColor Green
+
 # Bootstrap: install dev deps + pre-commit hook + web deps
 bootstrap:
     uv sync --group dev
