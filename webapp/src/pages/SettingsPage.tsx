@@ -3,6 +3,7 @@ import {
 	CheckCircle2,
 	Cpu,
 	Loader2,
+	Rocket,
 	Server,
 	Settings,
 	XCircle,
@@ -10,24 +11,16 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import {
 	API_BASE,
+	discoverProviders,
+	getOnboarding,
+	type LlmProviderState,
 	listRenderers,
-	probeLmStudio,
-	probeOllama,
-	probeVllm,
+	type OnboardingState,
 } from "../lib/api";
 import { useStore } from "../store";
 
-const PROVIDER_DEFS = [
-	{ name: "Ollama", port: 11434, probe: probeOllama },
-	{ name: "LM Studio", port: 1234, probe: probeLmStudio },
-	{ name: "vLLM", port: 8000, probe: probeVllm },
-];
-
 export default function SettingsPage() {
 	const backendStatus = useStore((s) => s.backendStatus);
-	const detectedProviders = useStore((s) => s.detectedProviders);
-	const setProviders = useStore((s) => s.setProviders);
-	const providerStatus = useStore((s) => s.providerStatus);
 	const llmProvider = useStore((s) => s.llmProvider);
 	const setLlmProvider = useStore((s) => s.setLlmProvider);
 	const llmModel = useStore((s) => s.llmModel);
@@ -38,6 +31,8 @@ export default function SettingsPage() {
 	const [renderers, setRenderers] = useState<
 		{ name: string; status: string; body_type: string }[]
 	>([]);
+	const [providers, setProviders] = useState<LlmProviderState[]>([]);
+	const [onboarding, setOnboarding] = useState<OnboardingState | null>(null);
 	const [probing, setProbing] = useState(true);
 
 	useEffect(() => {
@@ -55,48 +50,34 @@ export default function SettingsPage() {
 
 	const probeAll = useCallback(async () => {
 		setProbing(true);
-		const statuses: Record<string, "probing" | "detected" | "not_found"> = {};
-		const detected: { name: string; port: number; base: string }[] = [];
-		const results = await Promise.all(
-			PROVIDER_DEFS.map(async (p) => {
-				statuses[p.name] = "probing";
-				const r = await p.probe();
-				statuses[p.name] = r.detected ? "detected" : "not_found";
-				if (r.detected) {
-					detected.push({
-						name: p.name,
-						port: p.port,
-						base: "http://127.0.0.1",
-					});
-				}
-				return { name: p.name, models: r.models };
-			}),
-		);
-		setProviders(detected, statuses);
-		setProbing(false);
+		try {
+			// All provider traffic goes through the backend proxy —
+			// the browser never fetches provider ports directly.
+			const found = await discoverProviders();
+			setProviders(found);
+			const detected = found.filter((p) => p.detected);
+			const ob = await getOnboarding();
+			setOnboarding(ob);
 
-		const savedProvider = localStorage.getItem("nekomimi-llm-provider");
-		const savedModel = localStorage.getItem("nekomimi-llm-model");
-		if (savedProvider && detected.find((d) => d.name === savedProvider)) {
-			setLlmProvider(savedProvider);
-			const p = results.find((r) => r.name === savedProvider);
-			if (p) {
-				setAvailableModels(p.models);
-				if (savedModel && p.models.includes(savedModel)) {
+			const savedProvider = localStorage.getItem("nekomimi-llm-provider");
+			const savedModel = localStorage.getItem("nekomimi-llm-model");
+			const match =
+				detected.find((d) => d.name === savedProvider) || detected[0];
+			if (match) {
+				setLlmProvider(match.name);
+				setAvailableModels(match.models);
+				if (savedModel && match.models.includes(savedModel)) {
 					setLlmModel(savedModel);
-				} else if (p.models.length > 0) {
-					setLlmModel(p.models[0]);
+				} else if (match.models.length > 0) {
+					setLlmModel(match.models[0]);
 				}
 			}
-		} else if (detected.length > 0) {
-			setLlmProvider(detected[0].name);
-			const p = results.find((r) => r.name === detected[0].name);
-			if (p) {
-				setAvailableModels(p.models);
-				if (p.models.length > 0) setLlmModel(p.models[0]);
-			}
+		} catch {
+			/* offline */
+		} finally {
+			setProbing(false);
 		}
-	}, [setProviders, setLlmProvider, setLlmModel, setAvailableModels]);
+	}, [setLlmProvider, setLlmModel, setAvailableModels]);
 
 	useEffect(() => {
 		probeAll();
@@ -104,13 +85,23 @@ export default function SettingsPage() {
 
 	const handleProviderChange = async (name: string) => {
 		setLlmProvider(name);
-		const def = PROVIDER_DEFS.find((p) => p.name === name);
+		const def = providers.find((p) => p.name === name);
 		if (def) {
-			const r = await def.probe();
-			setAvailableModels(r.models);
-			if (r.models.length > 0) setLlmModel(r.models[0]);
+			setAvailableModels(def.models);
+			if (def.models.length > 0) setLlmModel(def.models[0]);
 		}
 	};
+
+	const detectedProviders = providers.filter((p) => p.detected);
+	const providerStatus: Record<string, "probing" | "detected" | "not_found"> =
+		{};
+	for (const p of providers) {
+		providerStatus[p.name] = probing
+			? "probing"
+			: p.detected
+				? "detected"
+				: "not_found";
+	}
 
 	return (
 		<div data-testid="settings-page" className="p-4 md:p-6 space-y-6 max-w-3xl">
@@ -118,6 +109,42 @@ export default function SettingsPage() {
 				<Settings className="h-5 w-5 text-amber-500" />
 				<h1 className="text-lg font-semibold text-zinc-200">Settings</h1>
 			</div>
+
+			<section className="space-y-3">
+				<h2 className="text-xs text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+					<Rocket className="h-3.5 w-3.5" />
+					Onboarding
+				</h2>
+				<div
+					data-testid="onboarding-panel"
+					className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-2"
+				>
+					<div className="flex items-center justify-between">
+						<span className="text-sm text-zinc-400">Local LLM provider</span>
+						<span
+							className={`text-sm flex items-center gap-1.5 ${
+								onboarding?.configured ? "text-green-400" : "text-amber-400"
+							}`}
+						>
+							{onboarding?.configured ? (
+								<CheckCircle2 className="h-3.5 w-3.5" />
+							) : (
+								<AlertTriangle className="h-3.5 w-3.5" />
+							)}
+							{onboarding?.configured
+								? `Configured (${onboarding.provider})`
+								: "Not configured"}
+						</span>
+					</div>
+					<p className="text-xs text-zinc-500">
+						{onboarding?.message || "Checking for Ollama, LM Studio, or vLLM…"}
+					</p>
+					<p className="text-xs text-zinc-600">
+						First time? See docs/ONBOARDING.md in the repo for setup steps,
+						costs, and pitfalls.
+					</p>
+				</div>
+			</section>
 
 			<section className="space-y-3">
 				<h2 className="text-xs text-zinc-500 uppercase tracking-wider flex items-center gap-2">
@@ -209,7 +236,7 @@ export default function SettingsPage() {
 				</h2>
 				<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-4">
 					<div className="grid grid-cols-3 gap-2">
-						{PROVIDER_DEFS.map((p) => (
+						{providers.map((p) => (
 							<div
 								key={p.name}
 								className={`p-3 rounded-lg border text-sm ${

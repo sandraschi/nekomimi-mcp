@@ -5,43 +5,110 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	HelpCircle,
+	Inbox,
 	LayoutDashboard,
+	LayoutGrid,
 	MessageSquare,
 	ScrollText,
 	Settings,
 	Wrench,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { checkHealth } from "./lib/api";
+import { useZoom } from "./lib/useZoom";
 import { useStore } from "./store";
 
 const NAV_ITEMS = [
 	{ to: "/", label: "Dashboard", icon: LayoutDashboard },
+	{ to: "/inbox", label: "Inbox", icon: Inbox },
 	{ to: "/tools", label: "Tools", icon: Wrench },
 	{ to: "/skills", label: "Skills", icon: BookOpen },
 	{ to: "/chat", label: "Chat", icon: MessageSquare },
+	{ to: "/apps", label: "Apps", icon: LayoutGrid },
 	{ to: "/logs", label: "Logs", icon: ScrollText },
 	{ to: "/settings", label: "Settings", icon: Settings },
 	{ to: "/help", label: "Help", icon: HelpCircle },
 ];
 
+const POLL_BASE_MS = 5000;
+const POLL_MAX_MS = 60000;
+
 export default function AppLayout() {
 	const [collapsed, setCollapsed] = useState(false);
 	const location = useLocation();
+	const navigate = useNavigate();
 	const backendStatus = useStore((s) => s.backendStatus);
 	const setBackendStatus = useStore((s) => s.setBackendStatus);
+	const { zoom, bindZoomKeys } = useZoom();
+	const mainRef = useRef<HTMLElement | null>(null);
+	const backoffRef = useRef(POLL_BASE_MS);
 
 	useEffect(() => {
-		const poll = setInterval(async () => {
+		bindZoomKeys(mainRef.current);
+	}, [bindZoomKeys]);
+
+	// Health poll with exponential backoff when offline (5s -> 60s max),
+	// immediate re-check on success.
+	useEffect(() => {
+		let timer: ReturnType<typeof setTimeout>;
+		let cancelled = false;
+		const tick = async () => {
+			if (cancelled) return;
 			const ok = await checkHealth();
+			if (cancelled) return;
 			setBackendStatus(ok ? "connected" : "disconnected");
-		}, 5000);
-		checkHealth().then((ok) =>
-			setBackendStatus(ok ? "connected" : "disconnected"),
-		);
-		return () => clearInterval(poll);
+			backoffRef.current = ok
+				? POLL_BASE_MS
+				: Math.min(POLL_MAX_MS, backoffRef.current * 2);
+			timer = setTimeout(tick, backoffRef.current);
+		};
+		tick();
+		return () => {
+			cancelled = true;
+			clearTimeout(timer);
+		};
 	}, [setBackendStatus]);
+
+	// Tauri backend-status events (native shell only; no-op on web).
+	useEffect(() => {
+		let unlisten: (() => void) | undefined;
+		(async () => {
+			try {
+				const { listen } = await import("@tauri-apps/api/event");
+				unlisten = await listen<string>("backend-status", (event) => {
+					if (event.payload === "ready") {
+						backoffRef.current = POLL_BASE_MS;
+						checkHealth().then((ok) =>
+							setBackendStatus(ok ? "connected" : "disconnected"),
+						);
+					}
+				});
+			} catch {
+				/* not running inside Tauri */
+			}
+		})();
+		return () => unlisten?.();
+	}, [setBackendStatus]);
+
+	// Global shortcut: Ctrl+K jumps to chat.
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			const target = e.target as HTMLElement | null;
+			if (e.ctrlKey && (e.key === "k" || e.key === "K")) {
+				if (
+					target &&
+					(target.tagName === "INPUT" || target.tagName === "TEXTAREA")
+				) {
+					return;
+				}
+				e.preventDefault();
+				navigate("/chat");
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [navigate]);
 
 	const statusDot =
 		backendStatus === "connected"
@@ -142,11 +209,24 @@ export default function AppLayout() {
 										: "Connecting..."}
 							</span>
 						</div>
+						<span
+							data-testid="ui-zoom"
+							className="text-xs text-zinc-600"
+							title="UI zoom (Ctrl+scroll, Ctrl+0 resets)"
+						>
+							{Math.round(zoom * 100)}%
+						</span>
 						<span className="text-xs text-zinc-600">v0.1.0</span>
 					</div>
 				</header>
 
-				<main className="flex-1 overflow-y-auto">
+				<main
+					ref={(el) => {
+						mainRef.current = el;
+					}}
+					className="flex-1 overflow-y-auto"
+					style={{ zoom }}
+				>
 					<Outlet />
 				</main>
 			</div>

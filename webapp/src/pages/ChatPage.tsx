@@ -9,7 +9,12 @@ import {
 	User,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { emitIntent, listIntents } from "../lib/api";
+import {
+	backendChat,
+	emitIntent,
+	getOnboarding,
+	listIntents,
+} from "../lib/api";
 import { useStore } from "../store";
 
 const PERSONALITIES = [
@@ -51,6 +56,7 @@ export default function ChatPage() {
 	const addChatMessage = useStore((s) => s.addChatMessage);
 	const clearChatHistory = useStore((s) => s.clearChatHistory);
 	const backendStatus = useStore((s) => s.backendStatus);
+	const pushTimeline = useStore((s) => s.pushTimeline);
 
 	const [input, setInput] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -58,7 +64,9 @@ export default function ChatPage() {
 		return localStorage.getItem("nekomimi-chat-personality") || "assistant";
 	});
 	const [intentTokens, setIntentTokens] = useState<string[]>([]);
+	const [llmLabel, setLlmLabel] = useState("checking…");
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		localStorage.setItem("nekomimi-chat-personality", personality);
@@ -72,6 +80,14 @@ export default function ChatPage() {
 			} catch {
 				/* offline */
 			}
+			try {
+				const ob = await getOnboarding();
+				setLlmLabel(
+					ob.configured ? `LLM: ${ob.provider}` : "offline intent matcher",
+				);
+			} catch {
+				setLlmLabel("offline intent matcher");
+			}
 		})();
 	}, []);
 
@@ -81,6 +97,36 @@ export default function ChatPage() {
 
 	const personalityPrompt =
 		PERSONALITIES.find((p) => p.id === personality)?.prompt || "";
+
+	/** Offline fallback: the same intent matcher the backend uses. */
+	const localReply = useCallback(
+		async (text: string) => {
+			const lower = text.toLowerCase().trim();
+			const matchedToken = intentTokens.find((t) => lower.includes(t));
+
+			if (matchedToken) {
+				const result = await emitIntent(matchedToken, 0.5);
+				pushTimeline(`${matchedToken} @ 0.5 — ok (chat)`);
+				return (
+					`Emitted intent: **${matchedToken}**\n\n` +
+						(result as { message?: string }).message ||
+					JSON.stringify(result, null, 2)
+				);
+			}
+			if (lower.includes("renderer") || lower.includes("hardware")) {
+				const ildata = (await listIntents()) as { count: number };
+				return (
+					`There are **${ildata.count}** intent tokens registered.\n\n` +
+					`Available tokens: ${intentTokens.join(", ")}.\n\nSay something like "try the nod intent" to emit one.`
+				);
+			}
+			return (
+				`${personalityPrompt}\n\nI can help you explore the nekomimi embodiment system. ` +
+				`Try one of the example prompts above, or ask about available intents and renderers.`
+			);
+		},
+		[intentTokens, personalityPrompt, pushTimeline],
+	);
 
 	const handleSend = useCallback(async () => {
 		const text = input.trim();
@@ -94,48 +140,38 @@ export default function ChatPage() {
 		setLoading(true);
 
 		try {
-			const lower = text.toLowerCase().trim();
-			const matchedToken = intentTokens.find((t) => lower.includes(t));
-
-			if (matchedToken) {
-				const result = await emitIntent(matchedToken, 0.5);
-				const msg =
-					`Emitted intent: **${matchedToken}**\n\n` +
-						(result as { message?: string }).message ||
-					JSON.stringify(result, null, 2);
+			// Skill-first backend chat (skill preprompt + live provider when configured).
+			const history = chatHistory.map((m) => ({
+				role: m.role,
+				content: m.content,
+			}));
+			const reply = await backendChat(text, history);
+			if (reply.token) pushTimeline(`${reply.token} — ok (chat)`);
+			addChatMessage({
+				role: "assistant",
+				content: reply.text,
+				ts: new Date().toISOString(),
+			});
+		} catch {
+			// Backend unreachable: answer locally so chat never goes blank.
+			try {
+				const msg = await localReply(text);
 				addChatMessage({
 					role: "assistant",
 					content: msg,
 					ts: new Date().toISOString(),
 				});
-			} else if (lower.includes("renderer") || lower.includes("hardware")) {
-				const ildata = (await listIntents()) as { count: number };
+			} catch (e) {
 				addChatMessage({
 					role: "assistant",
-					content:
-						`There are **${ildata.count}** intent tokens registered.\n\n` +
-						`Available tokens: ${intentTokens.join(", ")}.\n\nSay something like "try the nod intent" to emit one.`,
-					ts: new Date().toISOString(),
-				});
-			} else {
-				addChatMessage({
-					role: "assistant",
-					content:
-						`${personalityPrompt}\n\nI can help you explore the nekomimi embodiment system. ` +
-						`Try one of the example prompts above, or ask about available intents and renderers.`,
+					content: `Error: ${e instanceof Error ? e.message : "Failed to process request"}`,
 					ts: new Date().toISOString(),
 				});
 			}
-		} catch (e) {
-			addChatMessage({
-				role: "assistant",
-				content: `Error: ${e instanceof Error ? e.message : "Failed to process request"}`,
-				ts: new Date().toISOString(),
-			});
 		} finally {
 			setLoading(false);
 		}
-	}, [input, loading, intentTokens, personalityPrompt, addChatMessage]);
+	}, [input, loading, chatHistory, addChatMessage, localReply, pushTimeline]);
 
 	const handleExport = () => {
 		if (chatHistory.length === 0) return;
@@ -184,6 +220,21 @@ export default function ChatPage() {
 						</option>
 					))}
 				</select>
+
+				<span
+					data-testid="chat-provider-status"
+					title="Chat backend: live LLM when a provider is configured, otherwise the offline intent matcher"
+					className={`text-xs flex items-center gap-1.5 ${
+						llmLabel.startsWith("LLM:") ? "text-green-400" : "text-zinc-500"
+					}`}
+				>
+					<span
+						className={`w-2 h-2 rounded-full ${
+							llmLabel.startsWith("LLM:") ? "bg-green-500" : "bg-zinc-600"
+						}`}
+					/>
+					{llmLabel}
+				</span>
 
 				<div className="flex-1" />
 
@@ -281,6 +332,7 @@ export default function ChatPage() {
 			<div className="p-4 border-t border-zinc-800 bg-zinc-900/50 shrink-0">
 				<div className="flex gap-3 max-w-4xl mx-auto">
 					<input
+						ref={inputRef}
 						data-testid="chat-input"
 						type="text"
 						value={input}

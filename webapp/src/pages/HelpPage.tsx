@@ -3,7 +3,9 @@ import {
 	BrainCircuit,
 	Cpu,
 	HelpCircle,
+	Keyboard,
 	MessageSquare,
+	Rocket,
 	Wrench,
 } from "lucide-react";
 
@@ -24,19 +26,31 @@ const SECTIONS = [
 		icon: MessageSquare,
 		title: "Chat & Commands",
 		content:
-			"The Chat page uses MCP tools as its backend. Type an intent token name (e.g., 'nod', 'sulk', 'surprised') and the system will call the intent_tool to express it through connected renderers.\n\nYou can also ask about available tools and renderers.",
+			"The Chat page talks to POST /api/chat on the backend. When a local LLM provider (Ollama, LM Studio, vLLM) is configured, the server answers skill-first: the nekomimi-operator skill becomes the system prompt. Otherwise — or when the backend is unreachable — chat runs on the offline intent matcher, which also emits any intent token you name.\n\nType an intent token name (e.g., 'nod', 'sulk', 'surprised') and the system will express it through connected renderers. The provider indicator in the chat toolbar shows which mode you are in.",
 	},
 	{
 		icon: Wrench,
 		title: "Tools",
 		content:
-			"The Tools page lists all registered intent tokens with their default parameters (timing, speed, intensity, easing curve). Each tool maps a social intent to motion parameters.\n\nPortmanteau pattern: The intent_tool consolidates all expression operations into a single MCP tool with a 'token' discriminator.",
+			"The Tools page lists all registered intent tokens with their default parameters (timing, speed, intensity, easing curve). Each tool maps a social intent to motion parameters.\n\nPortmanteau pattern: express_intent consolidates all expression operations into a single MCP tool with a 'token' discriminator. Historic *_tool names still work as deprecated aliases.",
 	},
 	{
 		icon: BookOpen,
 		title: "Skills",
 		content:
-			"Skills provide structured guidance on how to use the nekomimi-mcp server. When the server registers skill resources (via FastMCP SkillsDirectoryProvider), they appear on the Skills page.\n\nSkills can be loaded as chat personalities to give the LLM context-aware instructions.",
+			"Skills provide structured guidance on how to use the nekomimi-mcp server. The server exposes them as skill:// MCP resources and GET /api/skills, and they appear on the Skills page.\n\nThe chat backend loads the operator skill as its system preprompt whenever a live provider answers.",
+	},
+	{
+		icon: Keyboard,
+		title: "Keyboard shortcuts",
+		content:
+			"Ctrl+K — jump to Chat from anywhere (except while typing).\nCtrl+scroll — zoom the UI in/out (persisted).\nCtrl+0 — reset UI zoom to 100%.\nEnter — send chat message.",
+	},
+	{
+		icon: Rocket,
+		title: "Onboarding",
+		content:
+			"Full chat needs a local LLM: install Ollama (https://ollama.com) or LM Studio, load any chat model, then check Settings. Until a provider is detected you get the red onboarding cue under the Dashboard hero and chat runs on the offline intent matcher.\n\nFirst-timer narrative with costs, pitfalls, and sanity checks: docs/ONBOARDING.md in the repo.",
 	},
 ];
 
