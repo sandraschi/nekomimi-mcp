@@ -71,7 +71,11 @@ class BoomyRenderer(BaseRenderer):
         return await self._render_boomy(token, params or MotionParams())
 
     async def _call(
-        self, operation: str, param1: float | str | None = None, param2: float | str | None = None
+        self,
+        operation: str,
+        param1: float | str | None = None,
+        param2: float | str | None = None,
+        param3: float | str | None = None,
     ) -> dict:
         try:
             r = await self._client.post(
@@ -81,7 +85,12 @@ class BoomyRenderer(BaseRenderer):
                     "method": "tools/call",
                     "params": {
                         "name": "yahboom_tool",
-                        "arguments": {"operation": operation, "param1": param1, "param2": param2},
+                        "arguments": {
+                            "operation": operation,
+                            "param1": param1,
+                            "param2": param2,
+                            "param3": param3,
+                        },
                     },
                 },
                 timeout=5.0,
