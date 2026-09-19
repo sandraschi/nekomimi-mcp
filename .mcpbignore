@@ -1,0 +1,18 @@
+# MCPB bundle exclusions for nekomimi-mcp.
+# Never pack: venvs, node_modules, webapp, tauri, tests, data, build output, backups.
+.venv/
+node_modules/
+**/node_modules/
+webapp/
+src-tauri/
+tests/
+data/
+dist/
+**/__pycache__/
+**/*.pyc
+**/*.bak
+**/*.bak.*
+mcpb/src/
+.env
+glama.json
+reports/
