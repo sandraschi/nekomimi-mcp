@@ -46,6 +46,23 @@ mcpb-validate:
 test:
     {{_uv}} run pytest tests/ -v
 
+# Full local quality gate (mirrors .github/workflows/ci.yml)
+ci:
+    {{_uv}} run ruff check src/ tests/
+    {{_uv}} run ruff format src/ tests/ --check
+    {{_uv}} run pyright src/
+    {{_uv}} run pytest tests/ -q
+    Set-Location webapp; {{_bun}} run check
+    Set-Location webapp; {{_bun}} run biome:ci
+    Write-Host "CI green." -ForegroundColor Green
+
+# Playwright e2e (spins up backend :11128 + preview :11129 itself)
+e2e:
+    Set-Location webapp; {{_bun}} x playwright test
+
+# CUA webapp test (browser-driven pre-Tauri pass)
+cua-webapp-test: e2e
+
 # Bootstrap: install dev deps + pre-commit hook + web deps
 bootstrap:
     uv sync --group dev
