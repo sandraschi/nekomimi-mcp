@@ -1,91 +1,69 @@
 # nekomimi-mcp
 
-Substrate-independent embodiment abstraction layer for conversational NPCs.
+![version](https://img.shields.io/badge/version-0.1.0-amber) ![python](https://img.shields.io/badge/python-3.12%2B-blue) ![fastmcp](https://img.shields.io/badge/fastmcp-3.4-purple) ![license](https://img.shields.io/badge/license-MIT-green)
 
-**One intent vocabulary. Many bodies. Zero joint angles in the LLM.**
+Substrate-independent embodiment layer for conversational NPCs — one intent vocabulary, many bodies.
 
-## Architecture
+## Preview
 
-```
-LLM → Intent tokens → Renderer registry → Boomy (yahboom-mcp)
-                                       → VRM (canonical humanoid)
-                                       → Resonite (stub)
-                                       → Reachy Mini (stub)
-                                       → Berkeley Lite (stub)
-```
+| Dashboard | Intent tools |
+|-----------|--------------|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Tools](docs/screenshots/tools.png) |
+| Live KPIs, intent panel, VRM + Boomy previews | All 17 intent tokens with timing metadata |
 
-Two strictly separated layers:
-- **INTENT**: Abstract expressive vocabulary (nod, sulk, amused, retreat…). The LLM emits only these tokens — it never emits joint angles and never knows which body the NPC inhabits.
-- **RENDER**: Per-substrate translators that convert intent + timing parameters into actuator commands. Adding a body = one renderer + one mapping table.
+## What You Can Do
 
-Motion quality (timing, easing, anticipation, hesitation) is a first-class parameter of every intent, not an afterthought per renderer.
+**How it runs**: headless by default — `express_intent` works with no hardware (simulated renderers + SQLite recording). Connect a Boomy robot via yahboom-mcp or a local LLM for full chat; nothing is bundled.
 
-## Tools
+- Emit 17 expressive intent tokens across 4 body types from one call
+- Chain intents into streams, record them, replay without hardware
+- Chat skill-first: operator skill + your local LLM, offline fallback included
+- Safety-guarded retreat (LIDAR) with auto-timeout persistent intents
+- Dashboard, Inbox (recordings), Apps (fleet discovery), Chat, Logs, Settings
 
-| Tool | Purpose |
-|------|---------|
-| `list_intents` | List all available intent tokens with timing metadata |
-| `get_intent_definition` | Canonical timing + fallback for one token |
-| `emit_intent` | Emit an intent token to all/specific renderers |
-| `list_renderers` | List registered body renderers |
-| `renderer_status` | Health check for one renderer |
-| `stop_all` | Emergency stop — halt all renderers |
-| `list_recorded_streams` | List recorded intent streams |
-| `replay_stream` | Replay a recorded intent stream |
-| `delete_stream` | Delete a recorded stream |
-| `status` | Server status: uptime, tool count, renderer summary |
-| `shutdown` | Graceful shutdown (requires confirm=True) |
-| `show_renderers_card` | Renderer list as a Prefab in-chat card |
+## Quick Install
 
-> Actual registered MCP tool names carry a `_tool` suffix
-> (e.g. `intent_tool`, `list_intents_tool`, `status_tool`, `shutdown_tool`)
-> plus `show_renderers_card`. See `llms-full.txt` for the full list.
+Drag-and-drop `dist/nekomimi-mcp-v0.1.0.mcpb` into Claude Desktop, or:
 
-## REST endpoints (HTTP mode)
-
-`GET /health`, `GET /api/status`, `GET /api/skills` (+ `/api/skills/{name}`),
-`GET /api/capabilities`, `GET /api/v1/diagnostics`, `POST /api/shutdown`.
-MCP itself on `POST /mcp`.
-
-## Renderer Status
-
-| Renderer | Status | Backend |
-|----------|--------|---------|
-| Boomy | **DONE** | Delegates to yahboom-mcp via HTTP |
-| VRM (canonical) | **DONE** | VRM 1.0 normalized bone poses (data-only; webapp for 3D) |
-| Resonite | **STUB** | resonite-mcp API mapping needed |
-| Reachy Mini | **STUB** | Hardware on order; sim via MuJoCo |
-| Berkeley Lite | **STUB** | No hardware; sim via Isaac Lab |
-
-## Usage
-
-```bash
-# Start with dual transport (HTTP + stdio)
-uv run nekomimi --mode dual
-
-# stdio only (for Claude Desktop)
-uv run nekomimi --mode stdio
-
-# Emit an intent
-curl -X POST http://127.0.0.1:10700/api/v1/tools/execute \
-  -H "Content-Type: application/json" \
-  -d '{"tool": "emit_intent", "token": "nod", "intensity": 0.7}'
+```powershell
+uv sync
+just serve-http   # backend :11128
 ```
 
-## Safety
+Full paths: [INSTALL.md](INSTALL.md). First time? Read [docs/ONBOARDING.md](docs/ONBOARDING.md) before expecting live chat.
 
-- `retreat` and `sulk` both drive backward — geometry guard checks LIDAR before permitting motion
-- `sulk` has a timeout and wounded-dignity return, not an open-ended state
-- `stop_all` is always available from any client
+## Example Prompts
 
-## Webapp
+- "Express a surprised gesture, then curiosity, then attention"
+- "What can the Boomy robot express, and what are its limits?"
+- "Replay recording 3 on the VRM renderer only"
 
-```bash
-cd webapp && npm install && npm run dev
-```
+## Fleet Crossconnects (Companions)
 
-Side-by-side preview: VRM canonical skeleton + Boomy telemetry + intent stream timeline.
+| Peer | Role | Optional? |
+|------|------|-----------|
+| [yahboom-mcp](https://github.com/sandraschi/yahboom-mcp) | Boomy robot hardware bridge (:10892) | Yes — sim mode without it |
+| [resonite-mcp](https://github.com/sandraschi/resonite-mcp) | Resonite VRM avatar bridge (:10979) | Yes — preview works without it |
 
-## Intent Tokens (14)
+Companions are probed live on the Apps page and never required.
 
-attending, nod, shake, sulk, bashful, amused, playful, confused, retreat, surprise, bow, happy, sad, angry, nekomimi
+## Documentation
+
+| Doc | Contents |
+|-----|----------|
+| [Installation](INSTALL.md) | All install methods, prerequisites |
+| [Onboarding](docs/ONBOARDING.md) | First-timer setup, money/CC (none), pitfalls |
+| [Architecture](docs/ARCHITECTURE.md) | System architecture, data flow, ports |
+| [Configuration](docs/CONFIGURATION.md) | Env vars, config options |
+| [Tool Reference](docs/TOOLS.md) | All 14 MCP tools + prompts + resources |
+| [Development](docs/DEVELOPMENT.md) | Contributing, local setup, test doubles |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues |
+
+## Requirements
+
+Windows 10/11, Python 3.12+ (via `uv`), optional: Ollama or LM Studio for chat,
+Boomy robot + yahboom-mcp for hardware expression. Ports 11128/11129 must be free.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -1,11 +1,23 @@
 # nekomimi-mcp — Directory Map
 
+## Service footprint (daemon + state)
+
+- Backend HTTP :11128 (`GET /health`), frontend :11129. No NSSM service.
+- SQLite at `src/data/intents.db` (opened at import in `tools.py` — stdio and
+  HTTP modes must not run concurrently against it; there is no stdio→HTTP
+  proxy, so run ONE transport at a time).
+- Probe before debugging: `/health` → `/api/status` → `/api/v1/diagnostics`.
+- Shutdown: `POST /api/shutdown` or `shutdown_server(confirm=True)`.
+- Ports are fleet-registered (11128/11129); never change without
+  `mcp-central-docs/fleet-gate/claim_ports.py`.
+
 ## src/nekomimi_mcp/
 
 | File | Purpose |
 |------|---------|
-| `server.py` | FastMCP entry, dual transport, tool registration |
-| `tools.py` | 11 MCP tools: intent, stream, renderer registry, safety, recordings |
+| `server.py` | FastMCP entry, dual transport, tool registration, REST routes |
+| `tools.py` | 14 MCP tools (verb-led primaries + deprecated `*_tool` aliases) |
+| `llm.py` | Local LLM proxy (Ollama/LM Studio/vLLM) + onboarding signal |
 | `prompts.py` | 3 registered @mcp.prompt() templates |
 
 ## Key Packages
