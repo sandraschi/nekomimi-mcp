@@ -1,12 +1,27 @@
 import { motion } from "framer-motion";
-import { Activity, AlertTriangle, BrainCircuit, Cpu } from "lucide-react";
+import {
+	Activity,
+	AlertTriangle,
+	BrainCircuit,
+	Cpu,
+	Rocket,
+	X,
+} from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import BoomyPanel from "../components/BoomyPanel";
 import IntentPanel from "../components/IntentPanel";
 import Timeline from "../components/Timeline";
 import VRMViewer from "../components/VRMViewer";
-import { emitIntent, listIntents, listRenderers } from "../lib/api";
+import {
+	emitIntent,
+	getOnboarding,
+	listIntents,
+	listRenderers,
+} from "../lib/api";
 import { useStore } from "../store";
+
+const ONBOARDING_DISMISS_KEY = "nekomimi-onboarding-dismissed";
 
 export default function DashboardPage() {
 	const backendStatus = useStore((s) => s.backendStatus);
@@ -25,6 +40,25 @@ export default function DashboardPage() {
 	>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
+	const [onboarded, setOnboarded] = useState(true);
+	const [ctaDismissed, setCtaDismissed] = useState(() => {
+		try {
+			return localStorage.getItem(ONBOARDING_DISMISS_KEY) === "1";
+		} catch {
+			return false;
+		}
+	});
+
+	useEffect(() => {
+		(async () => {
+			try {
+				const ob = await getOnboarding();
+				setOnboarded(ob.configured);
+			} catch {
+				/* offline: keep CTA hidden until backend answers */
+			}
+		})();
+	}, []);
 
 	useEffect(() => {
 		(async () => {
@@ -137,6 +171,46 @@ export default function DashboardPage() {
 					</span>
 				</p>
 			</div>
+
+			{!onboarded && !ctaDismissed && backendStatus === "connected" && (
+				<div
+					data-testid="onboarding-cue"
+					className="flex items-center gap-4 bg-red-950/60 border-2 border-red-600 rounded-xl p-4 md:p-5"
+				>
+					<Rocket className="h-8 w-8 text-red-400 shrink-0" />
+					<div className="flex-1 min-w-0">
+						<div className="text-sm font-semibold text-red-200">
+							Complete onboarding — connect a local LLM
+						</div>
+						<div className="text-xs text-red-300/80 mt-0.5">
+							Chat runs on the offline intent matcher until Ollama, LM Studio,
+							or vLLM is reachable. See docs/ONBOARDING.md.
+						</div>
+					</div>
+					<Link
+						to="/settings"
+						data-testid="onboarding-cta"
+						className="shrink-0 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+					>
+						Open Settings
+					</Link>
+					<button
+						type="button"
+						aria-label="Dismiss onboarding cue"
+						onClick={() => {
+							try {
+								localStorage.setItem(ONBOARDING_DISMISS_KEY, "1");
+							} catch {
+								/* no storage */
+							}
+							setCtaDismissed(true);
+						}}
+						className="shrink-0 p-1.5 rounded-md text-red-400/70 hover:text-red-200 hover:bg-red-900/50 transition-colors"
+					>
+						<X className="h-4 w-4" />
+					</button>
+				</div>
+			)}
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 				<motion.div
