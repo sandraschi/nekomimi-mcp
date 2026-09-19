@@ -22,6 +22,8 @@ from nekomimi_mcp.tools import (
     safe_retreat_tool,
     safety_status_tool,
     show_renderers_card,
+    show_safety_card,
+    show_status_card,
     shutdown_tool,
     status_tool,
 )
@@ -54,6 +56,8 @@ _REGISTERED_TOOLS: list[tuple] = [
     (status_tool, _READ_ONLY, {}),
     (shutdown_tool, _MUTATING, {}),
     (show_renderers_card, {}, {"app": True}),
+    (show_status_card, {}, {"app": True}),
+    (show_safety_card, {}, {"app": True}),
 ]
 
 
@@ -119,6 +123,41 @@ def register_resources() -> None:
             description="Operator skill for the nekomimi embodiment layer",
             mime_type="text/markdown",
         )(nekomimi_operator_skill)
+
+
+def _gpu_info() -> dict:
+    """Best-effort GPU detection for local-LLM sizing (torch, then nvidia-smi)."""
+    import importlib.util
+    import shutil
+    import subprocess
+
+    if importlib.util.find_spec("torch") is not None:
+        try:
+            torch = importlib.import_module("torch")
+            if torch.cuda.is_available():
+                props = torch.cuda.get_device_properties(0)
+                return {
+                    "detected": True,
+                    "source": "torch.cuda",
+                    "name": torch.cuda.get_device_name(0),
+                    "vram_gb": round(props.total_memory / 1e9, 1),
+                }
+        except Exception:
+            pass
+    if shutil.which("nvidia-smi"):
+        try:
+            out = subprocess.run(
+                ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if out.returncode == 0 and out.stdout.strip():
+                name, _, _mem = out.stdout.strip().splitlines()[0].partition(",")
+                return {"detected": True, "source": "nvidia-smi", "name": name.strip()}
+        except Exception:
+            pass
+    return {"detected": False, "source": "none"}
 
 
 def _register_rest_routes(app, port: int) -> None:
@@ -206,7 +245,9 @@ def _register_rest_routes(app, port: int) -> None:
                 "platform": platform.platform(),
                 "port": port,
                 "tools": tool_names(),
+                "aliases": tool_aliases(),
                 "renderers": renderers,
+                "gpu": _gpu_info(),
                 "errors": [],
             }
         )
@@ -302,7 +343,10 @@ def _register_rest_routes(app, port: int) -> None:
 
         Tries: skill preprompt + live provider. Falls back (mode=local-fallback)
         to the offline intent matcher that also emits the matched intent.
+        stream=true returns SSE deltas instead of one JSON reply.
         """
+        from starlette.responses import StreamingResponse
+
         from nekomimi_mcp import llm as _llm
         from nekomimi_mcp.intent.schema import IntentToken
         from nekomimi_mcp.tools import intent_tool
@@ -319,6 +363,16 @@ def _register_rest_routes(app, port: int) -> None:
                 status_code=400,
             )
         try:
+            if body.get("stream"):
+                return StreamingResponse(
+                    _agent_chat_sse(
+                        user_text,
+                        history,
+                        body.get("provider"),
+                        body.get("model"),
+                    ),
+                    media_type="text/event-stream",
+                )
             result = await _llm.agent_chat(
                 user_text,
                 history=history,
@@ -420,6 +474,33 @@ def _register_rest_routes(app, port: int) -> None:
     app.add_route("/api/fleet/apps", fleet_apps, methods=["GET"])
 
 
+async def _agent_chat_sse(
+    user_text: str, history: list[dict], provider: str | None, model: str | None
+):
+    """SSE deltas for skill-first chat. Emits one error event when no provider is live."""
+    import json
+
+    from nekomimi_mcp import llm as _llm
+
+    try:
+        discovered = await _llm.discover_providers()
+        live = [p for p in discovered if p["detected"]]
+        if not live:
+            raise RuntimeError("No local LLM provider detected.")
+        pick = next((p for p in live if p["name"] == provider), live[0])
+        use_model = model or (pick["models"][0] if pick["models"] else "")
+        system = _llm.load_skill_preprompt()
+        messages = (
+            ([{"role": "system", "content": system}] if system else [])
+            + (history or [])
+            + [{"role": "user", "content": user_text}]
+        )
+        async for event in _llm_chat_sse(pick["name"], use_model, messages):
+            yield event
+    except RuntimeError as e:
+        yield f"data: {json.dumps({'error': str(e), 'mode': 'local-fallback'})}\n\n"
+
+
 async def _llm_chat_sse(provider: str, model: str, messages: list[dict]):
     """SSE generator: proxies the provider OpenAI-compat stream, fail-soft to a single error event."""
     import json
@@ -484,6 +565,20 @@ def main() -> int:
         logger.info(f"Starting nekomimi-mcp HTTP on port {_port}")
         uvicorn.run(_app, host="127.0.0.1", port=_port, log_level="info")
     else:
+        # Single-transport guard: SQLite opens at import, so stdio + HTTP must
+        # never run concurrently. If the HTTP daemon owns the port, say so.
+        import httpx
+
+        try:
+            r = httpx.get(f"http://127.0.0.1:{MCP_PORT}/health", timeout=2.0)
+            if r.status_code == 200:
+                logger.error(
+                    f"HTTP daemon already owns port {MCP_PORT} — refusing stdio "
+                    "(shared SQLite). Use the running daemon or stop it first."
+                )
+                return 2
+        except Exception:
+            pass
         logger.info("Starting nekomimi-mcp in stdio mode")
         mcp.run(transport="stdio")
 

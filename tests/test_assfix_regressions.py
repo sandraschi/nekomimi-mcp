@@ -50,5 +50,9 @@ def test_primary_tool_names():
     assert "express_intent" in names
     assert "list_intents" in names
     assert "shutdown_server" in names
+    assert "show_status_card" in names
+    assert "show_safety_card" in names
+    assert len(names) == 16
     assert "intent_tool" not in names
     assert "intent_tool" in tool_aliases()
+    assert len(tool_aliases()) == 13

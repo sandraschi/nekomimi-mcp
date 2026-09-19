@@ -21,6 +21,12 @@ _policy = TimeoutPolicy()
 
 _STARTED_AT = time.time()
 
+
+def _err(message: str, **extra) -> dict:
+    """Shared error shape: success False + error slug + dialogic message."""
+    return {"success": False, "error": message, "message": message, **extra}
+
+
 _OBJ = {"type": "object", "additionalProperties": True}
 
 
@@ -81,11 +87,10 @@ async def intent_tool(
     try:
         intent_token = IntentToken(token)
     except ValueError:
-        return {
-            "success": False,
-            "error": f"Unknown token '{token}'. Valid: {', '.join(t.value for t in IntentToken)}",
-            "message": f"Unknown token '{token}'. Use list_intents to see valid tokens.",
-        }
+        return _err(
+            f"Unknown token '{token}'. Use list_intents to see valid tokens.",
+            error=f"Unknown token '{token}'. Valid: {', '.join(t.value for t in IntentToken)}",
+        )
 
     params = get_default_params(intent_token)
     if timing_seconds is not None:
@@ -165,11 +170,10 @@ async def intent_stream_tool(
         try:
             validated.append(IntentToken(t))
         except ValueError:
-            return {
-                "success": False,
-                "error": f"Unknown token '{t}'",
-                "message": f"Unknown token '{t}'. Use list_intents to see valid tokens.",
-            }
+            return _err(
+                f"Unknown token '{t}'. Use list_intents to see valid tokens.",
+                error=f"Unknown token '{t}'",
+            )
 
     stream = IntentStream(tokens=validated, renderer=renderer, loop=loop)
     params = MotionParams()
@@ -479,6 +483,88 @@ async def show_renderers_card(
     }
 
 
+async def show_status_card(
+    ctx: Context | None = None,
+) -> dict:
+    """Show server status as a rich Prefab card.
+
+    Uptime, tool counts, and per-renderer state in-chat. Falls back to plain
+    text for hosts without Apps support.
+
+    ## Return Format
+    {"success": bool, "content": str, "structured_content": {...}, "message": str}
+
+    ## Examples
+    show_status_card()
+    """
+    import time
+
+    from prefab_ui import PrefabApp
+    from prefab_ui.components import Heading, Text
+
+    uptime_s = time.time() - _STARTED_AT
+    renderers = list_renderers()
+    with PrefabApp(title="nekomimi-mcp Status") as app:
+        Heading(content="nekomimi-mcp", level=2)
+        Text(content=f"Up {round(uptime_s, 1)}s — safety nominal")
+        for r in renderers:
+            icon = "🟢" if "ready" in r["status"] else "🟡"
+            Heading(content=r["name"], level=3)
+            Text(content=f"{icon} {r['status']}")
+
+    content = f"**nekomimi-mcp** up {round(uptime_s, 1)}s\n" + "\n".join(
+        f"- **{r['name']}**: {r['status']}" for r in renderers
+    )
+    return {
+        "success": True,
+        "content": content,
+        "structured_content": app,
+        "message": content,
+    }
+
+
+async def show_safety_card(
+    ctx: Context | None = None,
+) -> dict:
+    """Show safety subsystem state as a rich Prefab card.
+
+    Drive guard and timeout policy in-chat. Falls back to plain text for
+    hosts without Apps support.
+
+    ## Return Format
+    {"success": bool, "content": str, "structured_content": {...}, "message": str}
+
+    ## Examples
+    show_safety_card()
+    """
+    from prefab_ui import PrefabApp
+    from prefab_ui.components import Heading, Text
+
+    guard = {
+        "lidar_range_m": _guard.lidar_range_m,
+        "retreat_timeout_s": _guard.timeout_on_retreat_s,
+        "in_retreat": _guard._retreat_start is not None,
+    }
+    with PrefabApp(title="Safety Status") as app:
+        Heading(content="Safety Status", level=2)
+        Text(content=f"LIDAR range: {guard['lidar_range_m']}m")
+        Text(content=f"Retreat timeout: {guard['retreat_timeout_s']}s")
+        Text(content=f"In retreat: {guard['in_retreat']}")
+
+    content = (
+        "**Safety systems nominal**\n"
+        f"- LIDAR range: {guard['lidar_range_m']}m\n"
+        f"- Retreat timeout: {guard['retreat_timeout_s']}s\n"
+        f"- In retreat: {guard['in_retreat']}"
+    )
+    return {
+        "success": True,
+        "content": content,
+        "structured_content": app,
+        "message": content,
+    }
+
+
 async def status_tool(
     ctx: Context | None = None,
 ) -> dict:
@@ -500,12 +586,17 @@ async def status_tool(
     for name in RENDERER_REGISTRY.keys():
         r = get_renderer(name)
         renderers.append({"name": name, "status": r.status() if r else "missing"})
+    # Authoritative counts live in server.py (lazy import: server imports tools at top).
+    from nekomimi_mcp.server import tool_aliases as _aliases
+    from nekomimi_mcp.server import tool_names as _names
+
+    n_tools, n_aliases = len(_names()), len(_aliases())
     return {
         "success": True,
         "name": "nekomimi-mcp",
         "uptime_seconds": round(uptime_s, 1),
-        "tools": len(PRIMARY_TOOL_NAMES) + 1,
-        "aliases": len(PRIMARY_TOOL_NAMES),
+        "tools": n_tools,
+        "aliases": n_aliases,
         "renderers": renderers,
         "safety": "nominal",
         "message": f"nekomimi-mcp up {round(uptime_s, 1)}s, {len(renderers)} renderer(s), safety nominal",
