@@ -1,11 +1,5 @@
 import { create } from "zustand";
 
-export interface ProviderInfo {
-	name: string;
-	port: number;
-	base: string;
-}
-
 export interface ChatMessage {
 	role: "user" | "assistant";
 	content: string;
@@ -25,13 +19,6 @@ interface AppState {
 	timeline: string[];
 	pushTimeline: (entry: string) => void;
 	clearTimeline: () => void;
-
-	detectedProviders: ProviderInfo[];
-	providerStatus: Record<string, "probing" | "detected" | "not_found">;
-	setProviders: (
-		p: ProviderInfo[],
-		s: Record<string, "probing" | "detected" | "not_found">,
-	) => void;
 
 	llmProvider: string;
 	llmModel: string;
@@ -59,10 +46,6 @@ export const useStore = create<AppState>((set) => ({
 	pushTimeline: (entry) =>
 		set((s) => ({ timeline: [entry, ...s.timeline].slice(0, 50) })),
 	clearTimeline: () => set({ timeline: [] }),
-
-	detectedProviders: [],
-	providerStatus: {},
-	setProviders: (p, s) => set({ detectedProviders: p, providerStatus: s }),
 
 	llmProvider: localStorage.getItem("nekomimi-llm-provider") || "",
 	llmModel: localStorage.getItem("nekomimi-llm-model") || "",

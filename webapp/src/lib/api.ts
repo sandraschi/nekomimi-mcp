@@ -31,17 +31,12 @@ async function mcpCall(
 
 export async function checkHealth(): Promise<boolean> {
 	try {
-		const r = await fetch(`${API_BASE}/mcp`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				jsonrpc: "2.0",
-				id: 0,
-				method: "ping",
-			}),
+		const r = await fetch(`${API_BASE}/health`, {
 			signal: AbortSignal.timeout(3000),
 		});
-		return r.ok;
+		if (!r.ok) return false;
+		const body = await r.json();
+		return body.status === "ok";
 	} catch {
 		return false;
 	}
@@ -79,7 +74,7 @@ export async function emitIntent(
 	intensity: number,
 	speed?: number,
 ) {
-	return mcpCall("intent_tool", {
+	return mcpCall("express_intent", {
 		token,
 		intensity,
 		speed: speed ?? 0.5,
@@ -87,14 +82,32 @@ export async function emitIntent(
 }
 
 export async function getRendererInfo(name: string) {
-	return mcpCall("renderer_info", { name }) as Promise<Record<string, unknown>>;
+	return mcpCall("describe_renderer", { name }) as Promise<
+		Record<string, unknown>
+	>;
 }
 
 export async function getSafetyStatus() {
-	return mcpCall("safety_status") as Promise<{
+	return mcpCall("get_safety_status") as Promise<{
 		drive_guard: Record<string, unknown>;
 		timeout_policy: Record<string, unknown>;
 	}>;
+}
+
+export async function listRecordings(limit = 20) {
+	return mcpCall("list_recordings", { limit }) as Promise<{
+		recordings: {
+			id: number;
+			renderer: string;
+			tokens: string[];
+			timestamp: number;
+		}[];
+		count: number;
+	}>;
+}
+
+export async function replayRecording(recordingId: number) {
+	return mcpCall("replay_recording", { recording_id: recordingId });
 }
 
 export async function getSkills() {
@@ -117,52 +130,107 @@ export async function getSkillContent(name: string): Promise<string> {
 	return "";
 }
 
-export async function probeOllama() {
+export interface LlmProviderState {
+	name: string;
+	port: number;
+	detected: boolean;
+	models: string[];
+}
+
+export async function discoverProviders(): Promise<LlmProviderState[]> {
 	try {
-		const r = await fetch("http://127.0.0.1:11434/api/tags", {
-			signal: AbortSignal.timeout(3000),
+		const r = await fetch(`${API_BASE}/api/llm/discover`, {
+			signal: AbortSignal.timeout(10000),
 		});
-		if (!r.ok) return { detected: false, models: [] };
+		if (!r.ok) return [];
 		const data = await r.json();
-		return {
-			detected: true,
-			models: (data.models || []).map((m: { name: string }) => m.name),
-		};
+		return (data.providers || []).map(
+			(p: {
+				name: string;
+				port: number;
+				detected: boolean;
+				models: string[];
+			}) => ({
+				name: p.name,
+				port: p.port,
+				detected: p.detected,
+				models: p.models || [],
+			}),
+		);
 	} catch {
-		return { detected: false, models: [] };
+		return [];
 	}
 }
 
-export async function probeLmStudio() {
-	try {
-		const r = await fetch("http://127.0.0.1:1234/v1/models", {
-			signal: AbortSignal.timeout(3000),
-		});
-		if (!r.ok) return { detected: false, models: [] };
-		const data = await r.json();
-		return {
-			detected: true,
-			models: (data.data || []).map((m: { id: string }) => m.id),
-		};
-	} catch {
-		return { detected: false, models: [] };
-	}
+export interface OnboardingState {
+	configured: boolean;
+	provider: string | null;
+	model: string | null;
+	message: string;
 }
 
-export async function probeVllm() {
+export async function getOnboarding(): Promise<OnboardingState> {
 	try {
-		const r = await fetch("http://127.0.0.1:8000/v1/models", {
-			signal: AbortSignal.timeout(3000),
+		const r = await fetch(`${API_BASE}/api/llm/onboarding`, {
+			signal: AbortSignal.timeout(10000),
 		});
-		if (!r.ok) return { detected: false, models: [] };
-		const data = await r.json();
-		return {
-			detected: true,
-			models: (data.data || []).map((m: { id: string }) => m.id),
-		};
+		if (r.ok) return (await r.json()) as OnboardingState;
 	} catch {
-		return { detected: false, models: [] };
+		/* offline */
 	}
+	return {
+		configured: false,
+		provider: null,
+		model: null,
+		message: "Backend offline",
+	};
+}
+
+export interface ChatReply {
+	success: boolean;
+	mode: "live" | "local-fallback";
+	text: string;
+	provider?: string | null;
+	model?: string | null;
+	token?: string;
+}
+
+export async function backendChat(
+	message: string,
+	history: { role: string; content: string }[] = [],
+): Promise<ChatReply> {
+	const r = await fetch(`${API_BASE}/api/chat`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ message, history }),
+	});
+	if (!r.ok) {
+		throw new Error(`Chat failed: HTTP ${r.status}`);
+	}
+	return (await r.json()) as ChatReply;
+}
+
+export interface FleetApp {
+	name: string;
+	role: string;
+	backend: string;
+	frontend: string;
+	status: string;
+}
+
+export async function getFleetApps(): Promise<FleetApp[]> {
+	try {
+		const r = await fetch(`${API_BASE}/api/fleet/apps`, {
+			signal: AbortSignal.timeout(8000),
+		});
+		if (r.ok) {
+			const data = await r.json();
+			return data.apps || [];
+		}
+	} catch {
+		/* offline */
+	}
+	return [];
 }
 
 export { API_BASE };
