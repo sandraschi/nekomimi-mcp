@@ -2,6 +2,33 @@ const API_BASE = "http://127.0.0.1:11128";
 
 let _reqId = 1;
 
+/** Parse a FastMCP streamable-HTTP body: SSE `data:` frames carrying JSON-RPC. */
+function parseSseJsonRpc(raw: string): unknown {
+	const lines = raw.split(/\r?\n/);
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (!trimmed.startsWith("data:")) continue;
+		const payload = trimmed.slice(5).trim();
+		if (!payload || payload === "[DONE]") continue;
+		try {
+			const parsed = JSON.parse(payload) as {
+				result?: unknown;
+				error?: unknown;
+			};
+			if (
+				parsed &&
+				(parsed.result !== undefined || parsed.error !== undefined)
+			) {
+				return parsed;
+			}
+		} catch {
+			/* keep scanning frames */
+		}
+	}
+	// Fallback: some transports return plain JSON.
+	return JSON.parse(raw);
+}
+
 async function mcpCall(
 	name: string,
 	args: Record<string, unknown> = {},
@@ -9,7 +36,10 @@ async function mcpCall(
 	const id = _reqId++;
 	const r = await fetch(`${API_BASE}/mcp`, {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json, text/event-stream",
+		},
 		body: JSON.stringify({
 			jsonrpc: "2.0",
 			id,
@@ -20,7 +50,10 @@ async function mcpCall(
 	if (!r.ok) {
 		throw new Error(`MCP call failed: HTTP ${r.status}`);
 	}
-	const body = await r.json();
+	const body = (await parseSseJsonRpc(await r.text())) as {
+		error?: { message?: string };
+		result?: { content?: { text?: string }[] };
+	};
 	if (body.error) {
 		throw new Error(body.error.message || "MCP error");
 	}
