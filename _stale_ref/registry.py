@@ -4,6 +4,7 @@ import logging
 from collections.abc import Awaitable, Callable
 
 from nekomimi_mcp.intent.tokens import IntentFrame, PhysicalityTier
+
 from nekomimi_mcp.renderers.base import Renderer
 
 logger = logging.getLogger(__name__)

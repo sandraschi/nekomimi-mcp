@@ -1,11 +1,11 @@
-"""Berkeley Humanoid Lite renderer — SCHEMATIC STUB.
+"""Berkeley Humanoid Lite renderer - SCHEMATIC STUB.
 
 STUB STATUS: No hardware. Sim-only path exists (Isaac Lab + MuJoCo).
 This renderer will call the Berkeley Lite UDP interface once available.
 
 Berkeley Lite (biped, 12 DOF) constraints:
   - NO HEAD, NO FACE, NO VOICE, NO ARMS
-  - Legs only — all expression is gait modulation
+  - Legs only - all expression is gait modulation
   - Control via UDP position targets at ~50 Hz
   - Sim: Isaac Lab 2.1.0 + MuJoCo sim2sim
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class BerkeleyLiteRenderer(Renderer):
-    """SCHEMATIC STUB — intent mapping for Berkeley Humanoid Lite (biped).
+    """SCHEMATIC STUB - intent mapping for Berkeley Humanoid Lite (biped).
 
     All 12 DOF are leg joints. No upper body expression possible.
     """
@@ -58,7 +58,7 @@ class BerkeleyLiteRenderer(Renderer):
             "connected": self._available,
             "tokens": len(self.supported_tokens),
             "stub": True,
-            "note": "SCHEMATIC STUB — implement UDP position streaming when hardware acquired",
+            "note": "SCHEMATIC STUB - implement UDP position streaming when hardware acquired",
         }
 
     async def stop(self) -> None:

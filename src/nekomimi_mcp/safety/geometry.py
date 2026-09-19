@@ -34,7 +34,7 @@ async def check_retreat_path(lidar_data: dict | None) -> SafetyVerdict:
     SAFE = False with a reason. No data = no movement.
     """
     if lidar_data is None:
-        return SafetyVerdict(False, "No LIDAR data — cannot verify clear path")
+        return SafetyVerdict(False, "No LIDAR data - cannot verify clear path")
 
     rear_sectors = ["back_left", "back", "back_right"]
     for sector in rear_sectors:
@@ -64,5 +64,5 @@ def cower_substitute() -> dict:
             {"tool": "camera_set_pos", "params": {"pan": 90, "tilt": 150}},
             {"tool": "led", "params": [10, 5, 20]},
         ],
-        "note": "Cower in place — retreat blocked by obstacle",
+        "note": "Cower in place - retreat blocked by obstacle",
     }

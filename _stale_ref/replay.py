@@ -1,4 +1,5 @@
 """Intent Stream Player — replay a recorded intent stream from CLI."""
+
 import argparse
 import asyncio
 import sys
@@ -7,6 +8,7 @@ sys.path.insert(0, "src")
 
 from nekomimi_mcp.intent.stream import get_stream
 from nekomimi_mcp.renderers.registry import RendererRegistry
+
 from nekomimi_mcp.renderers.vrm import VRMRenderer
 
 
