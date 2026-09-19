@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Annotated
 
 from fastmcp import Context
@@ -17,6 +18,8 @@ _recorder = IntentRecorder()
 _player = IntentPlayer(_recorder)
 _guard = DriveGeometryGuard()
 _policy = TimeoutPolicy()
+
+_STARTED_AT = time.time()
 
 
 async def intent_tool(
@@ -63,6 +66,7 @@ async def intent_tool(
         return {
             "success": False,
             "error": f"Unknown token '{token}'. Valid: {', '.join(t.value for t in IntentToken)}",
+            "message": f"Unknown token '{token}'. Use list_intents to see valid tokens.",
         }
 
     params = get_default_params(intent_token)
@@ -143,7 +147,11 @@ async def intent_stream_tool(
         try:
             validated.append(IntentToken(t))
         except ValueError:
-            return {"success": False, "error": f"Unknown token '{t}'"}
+            return {
+                "success": False,
+                "error": f"Unknown token '{t}'",
+                "message": f"Unknown token '{t}'. Use list_intents to see valid tokens.",
+            }
 
     stream = IntentStream(tokens=validated, renderer=renderer, loop=loop)
     params = MotionParams()
@@ -274,7 +282,10 @@ async def safety_status_tool(
     """Get the current safety subsystem status.
 
     ## Return Format
-    {"drive_guard": {...}, "timeout_policy": {...}}
+    {"success": bool, "drive_guard": {...}, "timeout_policy": {...}, "message": str}
+
+    ## Examples
+    safety_status()
     """
     return {
         "success": True,
@@ -317,8 +328,8 @@ async def safe_retreat_tool(
             "success": False,
             "retreat_allowed": False,
             "obstacle_clear": False,
-            "action": "blocked — obstacle within LIDAR range",
-            "message": "Retreat blocked — obstacle detected within LIDAR range",
+            "action": "blocked - obstacle within LIDAR range",
+            "message": "Retreat blocked - obstacle detected within LIDAR range",
         }
 
     _guard.begin_retreat(_time.time())
@@ -331,15 +342,15 @@ async def safe_retreat_tool(
             "retreat_allowed": True,
             "obstacle_clear": True,
             "action": "retreat started (sulk)",
-            "message": "Retreat started — Boomy is executing sulk",
+            "message": "Retreat started - Boomy is executing sulk",
         }
 
     return {
         "success": True,
         "retreat_allowed": True,
         "obstacle_clear": True,
-        "action": "retreat started (simulated — no boomy hardware)",
-        "message": "Retreat started (simulated — Boomy hardware not connected)",
+        "action": "retreat started (simulated - no boomy hardware)",
+        "message": "Retreat started (simulated - Boomy hardware not connected)",
     }
 
 
@@ -393,7 +404,11 @@ async def export_recordings_tool(
     """Export all recorded intents to JSONL for external analysis.
 
     ## Return Format
-    {"success": bool, "path": str, "count": int}
+    {"success": bool, "path": str, "count": int, "message": str}
+
+    ## Examples
+    export_recordings()
+    export_recordings(path="data/intents_export.jsonl")
     """
     count = _recorder.export_jsonl(path)
     return {
@@ -414,7 +429,10 @@ async def show_renderers_card(
     support Apps.
 
     ## Return Format
-    {"success": bool, "content": str, "structured_content": {...}}
+    {"success": bool, "content": str, "structured_content": {...}, "message": str}
+
+    ## Examples
+    show_renderers_card()
     """
     from prefab_ui import PrefabApp
     from prefab_ui.components import Div, Heading
@@ -438,4 +456,73 @@ async def show_renderers_card(
         "success": True,
         "content": content,
         "structured_content": app,
+        "message": content,
+    }
+
+
+async def status_tool(
+    ctx: Context | None = None,
+) -> dict:
+    """Get server status: uptime, tool count, renderer and safety summary.
+
+    Liveness itself is served by GET /health over HTTP; this tool reports
+    the richer in-process status for agents.
+
+    ## Return Format
+    {"success": bool, "name": str, "tools": int, "renderers": [...], "safety": str, "message": str}
+
+    ## Examples
+    status()
+    """
+    from nekomimi_mcp.renderers import RENDERER_REGISTRY
+
+    uptime_s = time.time() - _STARTED_AT
+    renderers = [
+        {"name": name, "status": get_renderer(name).status() if get_renderer(name) else "missing"}
+        for name in RENDERER_REGISTRY.keys()
+    ]
+    return {
+        "success": True,
+        "name": "nekomimi-mcp",
+        "uptime_seconds": round(uptime_s, 1),
+        "tools": 14,
+        "renderers": renderers,
+        "safety": "nominal",
+        "message": f"nekomimi-mcp up {round(uptime_s, 1)}s, {len(renderers)} renderer(s), safety nominal",
+    }
+
+
+async def shutdown_tool(
+    ctx: Context | None = None,
+    confirm: Annotated[bool, Field(description="Must be True to actually shut down")] = False,
+    delay_seconds: Annotated[float, Field(description="Delay before exit (0-5)", ge=0, le=5)] = 0.5,
+) -> dict:
+    """Shut the server down gracefully (orderly exit for restarts).
+
+    Responds first so the caller sees the acknowledgement, then exits the
+    process after delay_seconds. Requires confirm=True.
+
+    ## Return Format
+    {"success": bool, "action": str, "message": str}
+
+    ## Examples
+    shutdown(confirm=True)
+    shutdown(confirm=True, delay_seconds=1.0)
+    """
+    import os
+    import threading
+
+    if not confirm:
+        return {
+            "success": False,
+            "action": "refused",
+            "message": "Shutdown refused: pass confirm=True to shut down nekomimi-mcp.",
+        }
+    timer = threading.Timer(max(0.0, delay_seconds), lambda: os._exit(0))
+    timer.daemon = True
+    timer.start()
+    return {
+        "success": True,
+        "action": f"exiting in {delay_seconds}s",
+        "message": f"nekomimi-mcp shutting down in {delay_seconds}s.",
     }

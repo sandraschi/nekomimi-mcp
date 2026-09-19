@@ -20,11 +20,13 @@ from nekomimi_mcp.tools import (
     safe_retreat_tool,
     safety_status_tool,
     show_renderers_card,
+    shutdown_tool,
+    status_tool,
 )
 
 logger = logging.getLogger("nekomimi-mcp")
 
-MCP_PORT = int(os.environ.get("NEKOMIMI_PORT", "11128"))
+MCP_PORT = int(os.environ.get("NEKOMIMI_PORT", os.environ.get("PORT", "11128")))
 
 mcp = FastMCP(
     name="nekomimi-mcp",
@@ -32,19 +34,144 @@ mcp = FastMCP(
 )
 
 
+_READ_ONLY = {"readOnlyHint": True}
+_MUTATING = {"readOnlyHint": False}
+
+_REGISTERED_TOOLS: list[tuple] = [
+    (intent_tool, _MUTATING, {}),
+    (intent_stream_tool, _MUTATING, {}),
+    (list_intents_tool, _READ_ONLY, {}),
+    (list_renderers_tool, _READ_ONLY, {}),
+    (renderer_info_tool, _READ_ONLY, {}),
+    (check_boomy_mapping_tool, _READ_ONLY, {}),
+    (safety_status_tool, _READ_ONLY, {}),
+    (safe_retreat_tool, _MUTATING, {}),
+    (recordings_list_tool, _READ_ONLY, {}),
+    (replay_intent_tool, _MUTATING, {}),
+    (export_recordings_tool, _MUTATING, {}),
+    (status_tool, _READ_ONLY, {}),
+    (shutdown_tool, _MUTATING, {}),
+    (show_renderers_card, {}, {"app": True}),
+]
+
+
+def tool_names() -> list[str]:
+    return [fn.__name__ for fn, _, _ in _REGISTERED_TOOLS]
+
+
 def register_tools() -> None:
-    mcp.tool(annotations={"readOnlyHint": False})(intent_tool)
-    mcp.tool(annotations={"readOnlyHint": False})(intent_stream_tool)
-    mcp.tool(annotations={"readOnlyHint": True})(list_intents_tool)
-    mcp.tool(annotations={"readOnlyHint": True})(list_renderers_tool)
-    mcp.tool(annotations={"readOnlyHint": True})(renderer_info_tool)
-    mcp.tool(annotations={"readOnlyHint": True})(check_boomy_mapping_tool)
-    mcp.tool(annotations={"readOnlyHint": True})(safety_status_tool)
-    mcp.tool(annotations={"readOnlyHint": False})(safe_retreat_tool)
-    mcp.tool(annotations={"readOnlyHint": True})(recordings_list_tool)
-    mcp.tool(annotations={"readOnlyHint": False})(replay_intent_tool)
-    mcp.tool(annotations={"readOnlyHint": False})(export_recordings_tool)
-    mcp.tool(app=True)(show_renderers_card)
+    for fn, annot, extra in _REGISTERED_TOOLS:
+        if extra.get("app"):
+            mcp.tool(app=True)(fn)
+        else:
+            mcp.tool(annotations=annot)(fn)
+
+
+def _register_rest_routes(app, port: int) -> None:
+    """Fleet REST surface: health, status, skills, capabilities, diagnostics, shutdown.
+
+    The webapp and fleet launcher consume these over HTTP; the MCP tools
+    remain the primary agent surface on /mcp.
+    """
+    from pathlib import Path
+
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse, PlainTextResponse
+
+    skills_dir = Path(__file__).resolve().parent / "skills"
+
+    async def health(_: Request) -> JSONResponse:
+        return JSONResponse({"status": "ok", "server": "nekomimi-mcp", "port": port})
+
+    async def status(_: Request) -> JSONResponse:
+        import time
+
+        from nekomimi_mcp import tools as _tools
+
+        uptime_s = time.time() - _tools._STARTED_AT
+        return JSONResponse(
+            {
+                "status": "ok",
+                "server": "nekomimi-mcp",
+                "version": "0.1.0",
+                "uptime_seconds": round(uptime_s, 1),
+                "tool_count": len(tool_names()),
+                "tools": tool_names(),
+                "message": "nekomimi-mcp healthy",
+            }
+        )
+
+    async def skills(_: Request) -> JSONResponse:
+        if skills_dir.exists():
+            found = sorted(p.name for p in skills_dir.iterdir() if (p / "SKILL.md").exists())
+        else:
+            found = []
+        return JSONResponse(
+            {
+                "skills": [{"name": n, "uri": f"skill://{n}"} for n in found],
+                "count": len(found),
+            }
+        )
+
+    async def skill_content(request: Request) -> PlainTextResponse:
+        name = request.path_params.get("name", "")
+        doc = skills_dir / name / "SKILL.md"
+        if not doc.exists():
+            return PlainTextResponse(f"Skill '{name}' not found.", status_code=404)
+        return PlainTextResponse(doc.read_text(encoding="utf-8"))
+
+    async def capabilities(_: Request) -> JSONResponse:
+        return JSONResponse(
+            {
+                "server": "nekomimi-mcp",
+                "version": "0.1.0",
+                "transports": ["stdio", "http"],
+                "tools": tool_names(),
+                "prompts": ["nekomimi_intent_guide", "nekomimi_character", "renderer_comparison"],
+                "resources": [],
+                "ports": {"backend": port, "frontend": 11129},
+                "message": f"{len(tool_names())} tools over stdio + HTTP /mcp",
+            }
+        )
+
+    async def diagnostics(_: Request) -> JSONResponse:
+        import platform
+
+        from nekomimi_mcp.renderers import RENDERER_REGISTRY, get_renderer
+
+        renderers = []
+        for name in RENDERER_REGISTRY.keys():
+            r = get_renderer(name)
+            renderers.append({"name": name, "status": r.status() if r else "missing"})
+        return JSONResponse(
+            {
+                "server": "nekomimi-mcp",
+                "version": "0.1.0",
+                "python": platform.python_version(),
+                "platform": platform.platform(),
+                "port": port,
+                "tools": tool_names(),
+                "renderers": renderers,
+                "errors": [],
+            }
+        )
+
+    async def shutdown(_: Request) -> JSONResponse:
+        import os
+        import threading
+
+        timer = threading.Timer(0.5, lambda: os._exit(0))
+        timer.daemon = True
+        timer.start()
+        return JSONResponse({"success": True, "message": "nekomimi-mcp shutting down in 0.5s."})
+
+    app.add_route("/health", health, methods=["GET"])
+    app.add_route("/api/status", status, methods=["GET"])
+    app.add_route("/api/skills", skills, methods=["GET"])
+    app.add_route("/api/skills/{name}", skill_content, methods=["GET"])
+    app.add_route("/api/capabilities", capabilities, methods=["GET"])
+    app.add_route("/api/v1/diagnostics", diagnostics, methods=["GET"])
+    app.add_route("/api/shutdown", shutdown, methods=["POST"])
 
 
 def main() -> int:
@@ -62,9 +189,10 @@ def main() -> int:
                 _port = int(sys.argv[i + 1])
                 break
         else:
-            _port = int(os.environ.get("NEKOMIMI_PORT", str(MCP_PORT)))
+            _port = int(os.environ.get("NEKOMIMI_PORT", os.environ.get("PORT", str(MCP_PORT))))
 
         _app = mcp.http_app()
+        _register_rest_routes(_app, _port)
         _app.add_middleware(
             CORSMiddleware,
             allow_origins=[
