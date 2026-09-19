@@ -3,6 +3,7 @@ set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
 set shell := ["powershell.exe", "-NoProfile", "-Command"]
 
 _uv := "C:\\Users\\sandr\\.local\\bin\\uv.exe"
+_bun := "C:\\Users\\sandr\\.bun\\bin\\bun.exe"
 _ruff := "C:\\Users\\sandr\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\ruff.exe"
 _just := "C:\\Users\\sandr\\.local\\bin\\just.exe"
 _mcpb := "C:\\Users\\sandr\\AppData\\Roaming\\npm\\mcpb.cmd"
@@ -29,6 +30,9 @@ fix:
     {{_ruff}} check --fix src/
     {{_ruff}} format src/
 
+fmt:
+    {{_ruff}} format src/
+
 sync:
     {{_uv}} sync
 
@@ -42,8 +46,9 @@ mcpb-validate:
 test:
     {{_uv}} run pytest tests/ -v
 
-# Bootstrap: install dev deps + pre-commit hook
+# Bootstrap: install dev deps + pre-commit hook + web deps
 bootstrap:
     uv sync --group dev
     uv run pre-commit install
+    Set-Location webapp; {{_bun}} install --frozen-lockfile
     Write-Host "Pre-commit hooks installed." -ForegroundColor Green

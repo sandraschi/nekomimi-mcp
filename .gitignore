@@ -12,3 +12,9 @@ data/*.jsonl
 *.egg-info/
 .ruff_cache/
 .vscode/
+*.mcpb
+*.bak
+*.bak.*
+native/target/
+native/gen/
+mcpb/src/

@@ -33,6 +33,19 @@ Motion quality (timing, easing, anticipation, hesitation) is a first-class param
 | `list_recorded_streams` | List recorded intent streams |
 | `replay_stream` | Replay a recorded intent stream |
 | `delete_stream` | Delete a recorded stream |
+| `status` | Server status: uptime, tool count, renderer summary |
+| `shutdown` | Graceful shutdown (requires confirm=True) |
+| `show_renderers_card` | Renderer list as a Prefab in-chat card |
+
+> Actual registered MCP tool names carry a `_tool` suffix
+> (e.g. `intent_tool`, `list_intents_tool`, `status_tool`, `shutdown_tool`)
+> plus `show_renderers_card`. See `llms-full.txt` for the full list.
+
+## REST endpoints (HTTP mode)
+
+`GET /health`, `GET /api/status`, `GET /api/skills` (+ `/api/skills/{name}`),
+`GET /api/capabilities`, `GET /api/v1/diagnostics`, `POST /api/shutdown`.
+MCP itself on `POST /mcp`.
 
 ## Renderer Status
 
