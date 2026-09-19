@@ -1,0 +1,37 @@
+{
+  "manifest_version": "0.2",
+  "name": "nekomimi-mcp",
+  "version": "0.1.0",
+  "description": "Substrate-independent embodiment layer for conversational NPCs. Express intent tokens across robot, VRM, and humanoid bodies.",
+  "author": { "name": "sandraschi" },
+  "license": "MIT",
+  "homepage": "https://github.com/sandraschi/nekomimi-mcp",
+  "server": {
+    "type": "python",
+    "entry_point": "src/nekomimi_mcp/server.py",
+    "mcp_config": {
+      "command": "python",
+      "args": ["-m", "nekomimi_mcp.server"],
+      "env": {
+        "PYTHONPATH": "${PWD}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  },
+  "tools": [
+    { "name": "express_intent", "description": "Express one intent token on one or all renderers" },
+    { "name": "play_intent_stream", "description": "Execute an ordered sequence of intent tokens" },
+    { "name": "list_intents", "description": "List all intent tokens with default timing" },
+    { "name": "list_renderers", "description": "List registered body renderers with status" },
+    { "name": "describe_renderer", "description": "Capability details for one renderer" },
+    { "name": "preview_boomy_mapping", "description": "Preview intent to Boomy actuator mapping" },
+    { "name": "get_safety_status", "description": "Safety subsystem state" },
+    { "name": "retreat_safely", "description": "LIDAR-guarded retreat with timeout" },
+    { "name": "list_recordings", "description": "List recorded intent streams" },
+    { "name": "replay_recording", "description": "Replay a recorded stream without hardware" },
+    { "name": "export_recordings", "description": "Export recordings to JSONL" },
+    { "name": "get_status", "description": "Server status: uptime, tools, renderers" },
+    { "name": "shutdown_server", "description": "Graceful shutdown (confirm-gated)" },
+    { "name": "show_renderers_card", "description": "Renderer list as a Prefab in-chat card" }
+  ]
+}
