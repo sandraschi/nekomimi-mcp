@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import os
 
-import httpx
+from fastmcp import Client
+from fastmcp.exceptions import ClientError
 
 from nekomimi_mcp.intent.schema import IntentToken, MotionParams
 from nekomimi_mcp.renderers.base import BaseRenderer, RendererCapability
@@ -31,7 +32,7 @@ class BoomyRenderer(BaseRenderer):
     _led_b: int = 0
 
     def __init__(self):
-        self._client = httpx.AsyncClient(base_url=_YAHBOOM_BASE, timeout=5.0)
+        self._client = Client(_MCP_ENDPOINT, timeout=5.0)
         self.hardware_connected = self._probe()
 
     def _probe(self) -> bool:
@@ -78,31 +79,30 @@ class BoomyRenderer(BaseRenderer):
         param3: float | str | None = None,
     ) -> dict:
         try:
-            r = await self._client.post(
-                _MCP_ENDPOINT,
-                json={
-                    "jsonrpc": "2.0",
-                    "method": "tools/call",
-                    "params": {
-                        "name": "yahboom_tool",
-                        "arguments": {
-                            "operation": operation,
-                            "param1": param1,
-                            "param2": param2,
-                            "param3": param3,
-                        },
+            async with self._client:
+                result = await self._client.call_tool(
+                    "yahboom_tool",
+                    {
+                        "operation": operation,
+                        "param1": param1,
+                        "param2": param2,
+                        "param3": param3,
                     },
-                },
-                timeout=5.0,
-            )
-            if r.status_code == 200:
-                return {"success": True, "operation": operation}
-            return {"success": False, "error": f"HTTP {r.status_code}", "operation": operation}
-        except httpx.TimeoutException:
+                )
+            if result.is_error:
+                return {"success": False, "error": "tool call failed", "operation": operation}
+            return {"success": True, "operation": operation}
+        except TimeoutError:
             return {"success": False, "error": "timeout", "operation": operation}
-        except httpx.ConnectError:
+        except ClientError as e:
+            return {"success": False, "error": str(e), "operation": operation}
+        except Exception as e:
             self.hardware_connected = False
-            return {"success": False, "error": "yahboom-mcp unreachable", "operation": operation}
+            return {
+                "success": False,
+                "error": f"yahboom-mcp unreachable: {e}",
+                "operation": operation,
+            }
 
     async def _call_multi(
         self, calls: list[tuple[str, float | str | None, float | str | None]]
