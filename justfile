@@ -37,7 +37,7 @@ sync:
     {{_uv}} sync
 
 mcpb-pack:
-    pwsh.exe -NoProfile -ExecutionPolicy Bypass -File scripts/mcpb-pack.ps1
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/mcpb-pack.ps1
 
 mcpb-validate:
     & {{_mcpb}} validate .
