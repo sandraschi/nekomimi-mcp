@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import sys
@@ -247,7 +248,7 @@ def _register_rest_routes(app, port: int) -> None:
                 "tools": tool_names(),
                 "aliases": tool_aliases(),
                 "renderers": renderers,
-                "gpu": _gpu_info(),
+                "gpu": await asyncio.to_thread(_gpu_info),
                 "errors": [],
             }
         )
